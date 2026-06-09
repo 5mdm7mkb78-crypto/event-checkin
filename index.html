@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>映画上映会 受付システム</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --ink:#0f1923;--ink-sub:#5a6a7e;--bg:#f4f6f9;--card:#fff;--border:#dde3ec;
+  --blue:#1a5fa8;--blue-dark:#134d8a;--blue-light:#e8f0fc;
+  --green:#1e8a50;--green-light:#e6f7ee;
+  --red:#c0392b;--amber:#d97706;--amber-light:#fef3c7;
+  --radius:14px;--radius-sm:8px;
+  --shadow:0 2px 12px rgba(0,0,0,.09);--shadow-lg:0 8px 32px rgba(0,0,0,.15);
+}
+body{font-family:'Hiragino Kaku Gothic ProN','Hiragino Sans',Meiryo,sans-serif;
+  background:var(--bg);color:var(--ink);font-size:16px;min-height:100vh;overscroll-behavior:none}
+
+/* ===== ヘッダー ===== */
+header{
+  background:var(--blue);color:#fff;padding:0 14px;height:54px;
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:200;box-shadow:0 2px 12px rgba(0,0,0,.25);
+  gap:10px;
+}
+.header-title{font-size:1rem;font-weight:700;letter-spacing:.03em;white-space:nowrap;display:flex;align-items:center;gap:6px}
+.header-stats{display:flex;gap:6px;flex-wrap:nowrap}
+.hstat{
+  background:rgba(255,255,255,.18);padding:5px 11px;border-radius:20px;
+  font-size:.8rem;font-weight:600;white-space:nowrap;display:flex;align-items:center;gap:4px;
+}
+.hstat-num{font-size:1.05rem;font-weight:700}
+.hstat-green{background:rgba(30,138,80,.35)}
+.hstat-amber{background:rgba(217,119,6,.35)}
+
+/* ===== タブ ===== */
+.tabs{display:flex;background:#fff;border-bottom:2px solid var(--border);position:sticky;top:54px;z-index:190}
+.tab{flex:1;padding:13px 4px;text-align:center;font-size:.95rem;font-weight:600;
+  border:none;background:none;cursor:pointer;color:var(--ink-sub);
+  border-bottom:3px solid transparent;margin-bottom:-2px;transition:.18s;font-family:inherit}
+.tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+
+/* ===== ページ ===== */
+.page{display:none;padding:14px 14px 80px}.page.active{display:block}
+
+/* ===== アクションバー ===== */
+.action-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
+.file-label{display:inline-flex;align-items:center;gap:6px;padding:11px 16px;
+  background:#fff;border:2px dashed var(--border);border-radius:var(--radius-sm);
+  cursor:pointer;font-size:.95rem;font-weight:600;color:var(--blue);font-family:inherit;transition:.15s}
+.file-label:hover{border-color:var(--blue);background:var(--blue-light)}
+#csvFile{display:none}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  padding:12px 18px;font-size:.95rem;font-weight:700;border:none;border-radius:var(--radius-sm);
+  cursor:pointer;font-family:inherit;transition:.15s;white-space:nowrap;
+  -webkit-user-select:none;user-select:none}
+.btn:active{transform:scale(.96)}
+.btn-blue{background:var(--blue);color:#fff}.btn-blue:hover{background:var(--blue-dark)}
+.btn-outline{background:#fff;color:var(--ink-sub);border:1.5px solid var(--border)}
+.btn-sm{padding:8px 12px;font-size:.85rem}
+
+/* ===== 五十音パネル ===== */
+.kana-panel{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);
+  border:1px solid var(--border);margin-bottom:12px;overflow:hidden}
+.kana-panel-head{padding:8px 14px;background:var(--blue-light);border-bottom:1px solid var(--border);
+  font-size:.82rem;font-weight:700;color:var(--blue);display:flex;align-items:center;gap:8px}
+.kana-grid{display:grid;grid-template-columns:repeat(10,1fr);gap:4px;padding:8px}
+.kana-btn{padding:9px 2px;font-size:.95rem;font-weight:700;border:none;border-radius:7px;
+  cursor:pointer;font-family:inherit;transition:.15s;background:var(--bg);color:var(--ink);
+  text-align:center;-webkit-user-select:none;user-select:none;line-height:1.1}
+.kana-btn:active{transform:scale(.93)}
+.kana-btn.active{background:var(--blue);color:#fff;box-shadow:0 2px 8px rgba(26,95,168,.35)}
+.kana-btn.has-member{color:var(--blue);font-weight:700}
+.kana-btn.no-member{opacity:.28;pointer-events:none}
+.kana-active-label{padding:7px 14px;font-size:.88rem;color:var(--ink-sub);
+  display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--border)}
+.kana-active-label b{color:var(--blue)}
+.kana-reset-btn{font-size:.82rem;color:var(--ink-sub);background:var(--bg);border:none;
+  cursor:pointer;padding:4px 8px;border-radius:6px;font-family:inherit}
+
+/* ===== 検索欄 ===== */
+.search-wrap{position:relative;margin-bottom:12px}
+.search-input{width:100%;padding:15px 50px 15px 17px;font-size:1.1rem;
+  border:2.5px solid var(--border);border-radius:var(--radius);outline:none;
+  font-family:inherit;background:#fff;box-shadow:var(--shadow);transition:.18s;color:var(--ink)}
+.search-input:focus{border-color:var(--blue);box-shadow:0 0 0 4px rgba(26,95,168,.1)}
+.search-input.kana-mode{border-color:#ccc;background:#f9f9f9;color:#aaa}
+.search-clear{position:absolute;right:13px;top:50%;transform:translateY(-50%);
+  background:var(--border);border:none;border-radius:50%;width:30px;height:30px;
+  font-size:1rem;cursor:pointer;color:var(--ink-sub);display:flex;align-items:center;justify-content:center}
+.hint{text-align:center;color:var(--ink-sub);padding:44px 20px;font-size:1rem;line-height:1.9}
+
+/* ===== 家族カード ===== */
+.family-card{background:#fff;border-radius:var(--radius);margin-bottom:14px;
+  box-shadow:var(--shadow);border:2px solid var(--border);overflow:hidden;transition:.2s}
+.family-card.is-done{border-color:var(--green);background:#fafffe}
+.family-card.is-partial{border-color:var(--amber)}
+
+.fc-head{padding:11px 16px;display:flex;align-items:center;justify-content:space-between;gap:8px;
+  background:var(--blue-light);border-bottom:1px solid var(--border);flex-wrap:wrap}
+.family-card.is-done .fc-head{background:var(--green-light)}
+.family-card.is-partial .fc-head{background:var(--amber-light)}
+
+.fc-head-left{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.fc-id{font-weight:700;font-size:.9rem;color:var(--blue)}
+.family-card.is-done .fc-id{color:var(--green)}
+.fc-desc{font-size:.8rem;color:var(--ink-sub);background:#fff;padding:3px 8px;
+  border-radius:5px;border:1px solid var(--border)}
+
+.fc-group-tags{display:flex;gap:5px;flex-wrap:wrap}
+.fc-gtag{padding:3px 10px;border-radius:14px;font-size:.8rem;font-weight:700;color:#fff}
+
+/* ===== メンバー行 ===== */
+.fc-members{padding:5px 14px}
+.member-row{display:flex;align-items:center;padding:9px 2px;
+  border-bottom:1px solid var(--border);gap:8px;flex-wrap:wrap}
+.member-row:last-child{border:none}
+
+.member-left{display:flex;align-items:center;gap:8px;flex:1;min-width:0}
+.role-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;background:var(--ink-sub)}
+.rep-crown{
+  display:inline-block;font-size:.68rem;font-weight:700;
+  color:var(--blue);background:var(--blue-light);
+  padding:1px 5px;border-radius:4px;margin-right:4px;vertical-align:middle;
+  letter-spacing:.02em;
+}
+
+.member-yomi{font-size:.75rem;color:var(--ink-sub);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.member-name{font-size:1rem;font-weight:600;white-space:nowrap}
+
+.member-right{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.member-group-badge{font-size:.75rem;font-weight:700;padding:2px 8px;border-radius:10px;color:#fff}
+
+/* 個別受付ボタン */
+.btn-member{padding:7px 13px;font-size:.82rem;font-weight:700;border:none;border-radius:7px;
+  cursor:pointer;font-family:inherit;transition:.15s;white-space:nowrap;
+  -webkit-user-select:none;user-select:none}
+.btn-member:active{transform:scale(.94)}
+.btn-member.ready{background:var(--green);color:#fff}
+.btn-member.done{background:var(--green-light);color:var(--green);border:1.5px solid var(--green)}
+.btn-member.na{background:#eee;color:#bbb;pointer-events:none;font-size:.75rem}
+
+/* ===== 合計行 ===== */
+.fc-summary{padding:9px 16px;background:#f8f9fb;border-top:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.fc-summary-left{font-size:.85rem;color:var(--ink-sub)}
+.fc-summary-right{display:flex;align-items:baseline;gap:6px}
+.fc-amount{font-size:1.45rem;font-weight:700;color:var(--ink)}
+.fc-amount-sub{font-size:.82rem;color:var(--green);font-weight:600}
+
+/* ===== アクション（一括） ===== */
+.fc-actions{padding:11px 13px;display:flex;gap:9px}
+.btn-checkin-all{flex:1;padding:15px;font-size:1rem;font-weight:700;border:none;
+  border-radius:var(--radius-sm);cursor:pointer;font-family:inherit;transition:.15s;
+  display:flex;align-items:center;justify-content:center;gap:7px;
+  -webkit-user-select:none;user-select:none}
+.btn-checkin-all:active{transform:scale(.97)}
+.btn-checkin-all.ready{background:var(--green);color:#fff;box-shadow:0 4px 16px rgba(30,138,80,.28)}
+.btn-checkin-all.done{background:var(--green-light);color:var(--green);border:2px solid var(--green);pointer-events:none}
+.btn-checkin-all.partial{background:var(--amber);color:#fff}
+.btn-undo{padding:15px 13px;font-size:.85rem;font-weight:700;border:1.5px solid var(--border);
+  border-radius:var(--radius-sm);cursor:pointer;font-family:inherit;background:#fff;
+  color:var(--ink-sub);white-space:nowrap;transition:.15s}
+.btn-undo:active{transform:scale(.95)}
+.btn-guide{padding:15px 13px;font-size:.85rem;font-weight:700;border:none;
+  border-radius:var(--radius-sm);cursor:pointer;font-family:inherit;
+  background:var(--blue);color:#fff;white-space:nowrap;transition:.15s}
+.btn-guide:active{transform:scale(.95)}
+
+/* ===== モーダル ===== */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);
+  z-index:1000;align-items:center;justify-content:center;padding:20px}
+.modal-overlay.open{display:flex}
+.modal{background:#fff;border-radius:20px;padding:26px 20px 20px;max-width:360px;width:100%;
+  text-align:center;box-shadow:0 16px 60px rgba(0,0,0,.3);
+  animation:popIn .22s cubic-bezier(.34,1.56,.64,1)}
+@keyframes popIn{from{transform:scale(.82);opacity:0}to{transform:scale(1);opacity:1}}
+.modal-ok{font-size:2.8rem;margin-bottom:4px}
+.modal-title{font-size:.9rem;color:var(--ink-sub);margin-bottom:3px}
+.modal-name{font-size:1.6rem;font-weight:700;margin-bottom:14px}
+.modal-amount-box{background:var(--amber-light);border-radius:11px;padding:13px 16px;
+  margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
+.modal-amount-label{font-size:.88rem;color:var(--amber);font-weight:600}
+.modal-amount-num{font-size:1.9rem;font-weight:700;color:var(--amber)}
+.modal-group-list{display:flex;flex-direction:column;gap:7px;margin-bottom:16px}
+.modal-group-row{border-radius:10px;padding:11px 14px;display:flex;align-items:center;justify-content:space-between;color:#fff}
+.modal-group-row-name{font-size:.9rem;font-weight:600}
+.modal-group-row-g{font-size:1.5rem;font-weight:700;letter-spacing:.06em}
+.modal-close{width:100%;padding:16px;background:var(--blue);color:#fff;border:none;
+  border-radius:11px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit}
+.modal-close:active{transform:scale(.98)}
+
+/* ===== トースト ===== */
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(100px);
+  background:var(--ink);color:#fff;padding:12px 26px;border-radius:28px;
+  font-size:.95rem;font-weight:600;box-shadow:var(--shadow-lg);
+  transition:.3s cubic-bezier(.34,1.2,.64,1);z-index:2000;pointer-events:none;white-space:nowrap}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.green{background:var(--green)}.toast.red{background:var(--red)}
+
+/* ===== 参加者一覧テーブル ===== */
+.filter-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
+.filter-select{padding:10px 12px;font-size:.95rem;border:2px solid var(--border);
+  border-radius:var(--radius-sm);background:#fff;font-family:inherit;color:var(--ink)}
+.list-count{margin-left:auto;color:var(--ink-sub);font-size:.85rem}
+.table-wrap{overflow-x:auto;border-radius:var(--radius);box-shadow:var(--shadow)}
+table{width:100%;border-collapse:collapse;background:#fff;font-size:.9rem;min-width:480px}
+thead th{background:var(--blue);color:#fff;padding:11px 10px;text-align:left;font-weight:700;white-space:nowrap}
+tbody tr{border-bottom:1px solid var(--border);transition:.1s}
+tbody tr:hover{background:#f5f9ff}
+tbody tr.row-done{background:var(--green-light)}
+td{padding:9px 10px;vertical-align:middle}
+.tag{display:inline-block;padding:2px 8px;border-radius:5px;font-size:.78rem;font-weight:700}
+.tag-ok{background:var(--green);color:#fff}.tag-ng{background:#eee;color:#aaa}
+
+/* ===== グループ一覧 ===== */
+.group-summary-bar{background:#fff;border-radius:var(--radius);padding:13px 16px;margin-bottom:13px;
+  box-shadow:var(--shadow);border:1px solid var(--border);display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+.gsb-item{font-size:.92rem}.gsb-item b{font-size:1.15rem}
+.group-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:11px}
+.group-card{background:#fff;border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);border:1px solid var(--border)}
+.group-card-head{padding:13px 15px;color:#fff;font-weight:700;display:flex;align-items:center;justify-content:space-between}
+.group-name-big{font-size:1.35rem}
+.group-counts{font-size:.82rem;text-align:right;line-height:1.6;opacity:.9}
+.group-families{padding:10px 13px;display:flex;flex-wrap:wrap;gap:6px}
+.family-chip{display:inline-block;background:var(--bg);border:1px solid var(--border);border-radius:18px;padding:5px 11px;font-size:.84rem}
+.family-chip.done{background:#d4edda;border-color:var(--green);color:var(--green)}
+.group-progress{padding:0 13px 11px}
+.progress-bar{height:6px;background:#eee;border-radius:3px;overflow:hidden}
+.progress-fill{height:100%;background:var(--green);border-radius:3px;transition:.5s}
+.no-group-card{background:#fff;border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);border:2px dashed var(--border);margin-top:8px}
+.no-group-head{padding:11px 15px;background:var(--bg);border-bottom:1px solid var(--border);font-weight:700;color:var(--ink-sub);font-size:.92rem}
+.no-group-families{padding:10px 13px;display:flex;flex-wrap:wrap;gap:6px}
+
+@media(max-width:600px){
+  .kana-grid{grid-template-columns:repeat(5,1fr);gap:5px}
+  .kana-btn{padding:11px 2px;font-size:.92rem}
+  .group-grid{grid-template-columns:1fr}
+  .header-title{font-size:.9rem}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-title">🎬 映画上映会 受付</div>
+  <div class="header-stats">
+    <div class="hstat hstat-green">受付 <span class="hstat-num" id="h-checked">0</span>/<span class="hstat-num" id="h-total">0</span></div>
+    <div class="hstat hstat-amber">¥<span class="hstat-num" id="h-amount">0</span></div>
+  </div>
+</header>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('reception')">① 受付</button>
+  <button class="tab" onclick="switchTab('list')">② 参加者一覧</button>
+  <button class="tab" onclick="switchTab('group')">③ グループ</button>
+</div>
+
+<!-- ① 受付 -->
+<div id="page-reception" class="page active">
+  <div class="action-bar">
+    <label class="file-label" for="csvFile">📂 CSV読込</label>
+    <input type="file" id="csvFile" accept=".csv">
+    <button class="btn btn-blue" onclick="exportCSV()">💾 CSV出力</button>
+    <button class="btn btn-outline btn-sm" onclick="clearData()">🗑 初期化</button>
+  </div>
+
+  <div class="kana-panel">
+    <div class="kana-panel-head">🔤 よみがなで絞り込む
+      <span style="font-weight:400;color:var(--ink-sub);font-size:.76rem">（代表者のよみがなで絞り込みます）</span>
+    </div>
+    <div class="kana-grid" id="kana-grid"></div>
+    <div class="kana-active-label" id="kana-active-label" style="display:none">
+      <span><b id="kana-active-text"></b> の方を表示中</span>
+      <button class="kana-reset-btn" onclick="resetKana()">✕ 解除</button>
+    </div>
+  </div>
+
+  <div class="search-wrap">
+    <input type="search" id="searchInput" class="search-input"
+      placeholder="🔍 氏名・家族IDで検索（例：織田 ／ F01）"
+      oninput="onSearchInput()" autocomplete="off" autocorrect="off" spellcheck="false">
+    <button class="search-clear" onclick="clearSearch()">✕</button>
+  </div>
+
+  <div id="reception-results">
+    <div class="hint">五十音ボタンか、氏名・IDで検索してください</div>
+  </div>
+</div>
+
+<!-- ② 参加者一覧 -->
+<div id="page-list" class="page">
+  <div class="filter-bar">
+    <select class="filter-select" id="listFilter" onchange="renderList()">
+      <option value="all">すべて</option>
+      <option value="unchecked">未受付のみ</option>
+      <option value="checked">受付済のみ</option>
+    </select>
+    <select class="filter-select" id="listGroup" onchange="renderList()">
+      <option value="">グループ全て</option>
+    </select>
+    <span class="list-count" id="list-count"></span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th>家族ID</th><th>よみがな</th><th>氏名</th>
+        <th>シェア会G</th><th>参加費</th><th>受付</th><th>受付時刻</th>
+      </tr></thead>
+      <tbody id="list-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ③ グループ -->
+<div id="page-group" class="page">
+  <div class="group-summary-bar" id="group-summary"></div>
+  <div class="group-grid" id="group-grid"></div>
+  <div id="no-group-section"></div>
+</div>
+
+<!-- モーダル -->
+<div class="modal-overlay" id="modal" onclick="closeModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-ok">✅</div>
+    <div class="modal-title" id="modal-title">受付完了！</div>
+    <div class="modal-name" id="modal-name"></div>
+    <div class="modal-amount-box">
+      <div class="modal-amount-label">💴 お預かり金額</div>
+      <div class="modal-amount-num" id="modal-amount"></div>
+    </div>
+    <div class="modal-group-list" id="modal-group-list"></div>
+    <button class="modal-close" onclick="closeModal()">✓ 閉じる（次の方へ）</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* =====================================================================
+   定数・状態
+   ===================================================================== */
+const STORE_KEY = 'reception_v6';
+const FEE = 500;
+
+// グループ色マップ
+// A=茶（ヘッダー青・受付緑・エラー赤と被らない）
+// B=シアン（同上）
+// C=紫（変更なし）
+const GROUP_COLORS = {
+  'A':'#b45309',
+  'B':'#0e7490',
+  'C':'#7c3aed',
+  'D':'#be185d',
+  'E':'#065f46',
+  'F':'#1e3a5f'
+};
+function gColor(g){ return GROUP_COLORS[g] || '#888'; }
+
+let participants = []; // [{familyId, name, yomi, desc, group, checked, time}, ...]
+let activeKana = null;
+
+/* 五十音行定義 */
+const KANA_ROWS = [
+  {label:'ア行',row:'ア',chars:['あ','い','う','え','お','ぁ','ぃ','ぅ','ぇ','ぉ']},
+  {label:'カ行',row:'カ',chars:['か','き','く','け','こ','が','ぎ','ぐ','げ','ご']},
+  {label:'サ行',row:'サ',chars:['さ','し','す','せ','そ','ざ','じ','ず','ぜ','ぞ']},
+  {label:'タ行',row:'タ',chars:['た','ち','つ','て','と','だ','ぢ','づ','で','ど','っ']},
+  {label:'ナ行',row:'ナ',chars:['な','に','ぬ','ね','の']},
+  {label:'ハ行',row:'ハ',chars:['は','ひ','ふ','へ','ほ','ば','び','ぶ','べ','ぼ','ぱ','ぴ','ぷ','ぺ','ぽ']},
+  {label:'マ行',row:'マ',chars:['ま','み','む','め','も']},
+  {label:'ヤ行',row:'ヤ',chars:['や','ゆ','よ','ゃ','ゅ','ょ']},
+  {label:'ラ行',row:'ラ',chars:['ら','り','る','れ','ろ']},
+  {label:'ワ行',row:'ワ',chars:['わ','を','ん','ゎ']},
+];
+
+(function init(){
+  const raw = localStorage.getItem(STORE_KEY);
+  if(raw){ try{ participants=JSON.parse(raw); }catch(e){ participants=[]; } }
+  buildKanaGrid();
+  renderAll();
+})();
+
+function save(){ localStorage.setItem(STORE_KEY, JSON.stringify(participants)); }
+
+/* =====================================================================
+   CSV 読み込み
+   列: 家族ID, 氏名, よみがな, 区分, シェア会G
+   ─ 1行目（代表者）: 区分にテキスト説明、シェア会Gあり
+   ─ 以降（同一家族ID）: 区分='-'、シェア会G=各自
+   ===================================================================== */
+document.getElementById('csvFile').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const text = ev.target.result.replace(/^\uFEFF/,'').trim();
+    const lines = text.split(/\r?\n/).filter(l=>l.trim());
+    const hdrs = lines[0].split(',').map(h=>h.trim());
+
+    const iId   = hdrs.indexOf('家族ID');
+    const iName = hdrs.indexOf('氏名');
+    const iYomi = hdrs.indexOf('よみがな');
+    const iDesc = hdrs.indexOf('区分');
+    const iGrp  = hdrs.indexOf('シェア会G');
+
+    // グループ化して代表者のdescを記録
+    const familyDesc = {}; // familyId → desc text
+    const rawRows = [];
+    for(let i=1;i<lines.length;i++){
+      const c = lines[i].split(',');
+      const fid  = (c[iId]  ||'').trim();
+      const name = (c[iName]||'').trim();
+      const yomi = (c[iYomi]||'').trim();
+      const desc = (c[iDesc]||'').trim();
+      const grpRaw = iGrp>=0 ? (c[iGrp]||'').trim() : '';
+      const grp  = (grpRaw==='-'||grpRaw==='') ? '' : grpRaw;
+      if(!fid || !name) continue;
+      // 代表者行のdescを保存（'-'でない最初の行）
+      if(desc && desc!=='-' && !familyDesc[fid]) familyDesc[fid]=desc;
+      rawRows.push({fid,name,yomi,desc,grp});
+    }
+
+    // マージ（既存の受付状況を保持）
+    const map = {};
+    participants.forEach(p=>{ map[p.familyId+'§'+p.name]=p; });
+
+    participants = rawRows.map(r=>{
+      const key = r.fid+'§'+r.name;
+      const old = map[key];
+      return {
+        familyId : r.fid,
+        name     : r.name,
+        yomi     : r.yomi,
+        desc     : familyDesc[r.fid] || '',   // 代表者のdescを全員に付与
+        group    : r.grp,
+        checked  : old ? old.checked : false,
+        time     : old ? old.time    : '',
+      };
+    });
+
+    save();
+    buildKanaGrid();
+    renderAll();
+    showToast(`✅ ${participants.length}名 読み込み完了`, 'green');
+    e.target.value='';
+  };
+  reader.readAsText(file, 'utf-8');
+});
+
+/* =====================================================================
+   家族グループ取得
+   ===================================================================== */
+function getFamilies(){
+  const map = new Map();
+  participants.forEach(p=>{
+    if(!map.has(p.familyId)) map.set(p.familyId,[]);
+    map.get(p.familyId).push(p);
+  });
+  return map; // Map<familyId, member[]>
+}
+
+/* =====================================================================
+   受付可能メンバー（映画参加者 = 全員対象）
+   シェア会Gは受付・集金とは無関係。案内情報として表示のみ。
+   ===================================================================== */
+function isCheckinTarget(p){ return true; }
+
+/* =====================================================================
+   家族の受付状態  'done' | 'partial' | 'none'
+   ===================================================================== */
+function familyStatus(members){
+  const targets = members.filter(isCheckinTarget);
+  if(!targets.length) return 'none';
+  const doneCount = targets.filter(p=>p.checked).length;
+  if(doneCount===targets.length) return 'done';
+  if(doneCount>0) return 'partial';
+  return 'none';
+}
+
+/* =====================================================================
+   家族の受付対象合計金額（チェック済みのみ）
+   ===================================================================== */
+function paidAmount(members){ return members.filter(p=>isCheckinTarget(p)&&p.checked).length * FEE; }
+function totalAmount(members){ return members.filter(isCheckinTarget).length * FEE; }
+
+/* =====================================================================
+   受付操作
+   ===================================================================== */
+function doCheckinAll(familyId){
+  const members = participants.filter(p=>p.familyId===familyId);
+  const targets = members.filter(isCheckinTarget);
+  const allDone = targets.every(p=>p.checked);
+  const now = new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});
+  if(!allDone){
+    targets.forEach(p=>{ p.checked=true; if(!p.time) p.time=now; });
+    save(); renderAll();
+    showCheckinModal(members, '全員受付完了！');
+  } else {
+    undoAll(familyId);
+  }
+}
+
+function undoAll(familyId){
+  participants.filter(p=>p.familyId===familyId&&isCheckinTarget(p))
+    .forEach(p=>{ p.checked=false; p.time=''; });
+  save(); renderAll();
+  showToast('↩ 受付を取り消しました', 'red');
+}
+
+function doCheckinOne(familyId, name){
+  const p = participants.find(p=>p.familyId===familyId&&p.name===name);
+  if(!p || !isCheckinTarget(p)) return;
+  const now = new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});
+  if(!p.checked){
+    p.checked=true; p.time=now;
+    save(); renderAll();
+    const members = participants.filter(m=>m.familyId===familyId);
+    showCheckinModal([p], '受付完了！');
+  } else {
+    p.checked=false; p.time='';
+    save(); renderAll();
+    showToast('↩ '+p.name+'の受付を取り消しました','red');
+  }
+}
+
+/* =====================================================================
+   モーダル
+   ===================================================================== */
+function showCheckinModal(checkedMembers, title){
+  const familyId  = checkedMembers[0].familyId;
+  const allMembers= participants.filter(p=>p.familyId===familyId);
+  const rep       = checkedMembers[0];
+  const paid      = paidAmount(allMembers);
+
+  document.getElementById('modal-title').textContent  = title;
+  document.getElementById('modal-name').textContent   = rep.name+' さん';
+  document.getElementById('modal-amount').textContent = '¥'+paid.toLocaleString();
+
+  // シェア会案内：受付済メンバーのうちグループ(A/B/C…)が設定されている人
+  const shareMembers = allMembers.filter(p=>p.checked && p.group);
+  const gl = document.getElementById('modal-group-list');
+  if(shareMembers.length){
+    gl.innerHTML = `<div style="font-size:.8rem;color:var(--ink-sub);margin-bottom:6px;text-align:left">🎉 シェア会参加</div>`
+      + shareMembers.map(p=>`
+        <div class="modal-group-row" style="background:${gColor(p.group)}">
+          <span class="modal-group-row-name">${escHtml(p.name)}</span>
+          <span class="modal-group-row-g">${escHtml(p.group)}グループ</span>
+        </div>`).join('');
+  } else {
+    gl.innerHTML = '';
+  }
+
+  document.getElementById('modal').classList.add('open');
+}
+
+function showGuide(familyId){
+  const members = participants.filter(p=>p.familyId===familyId);
+  showCheckinModal(members, 'グループ案内');
+}
+
+function closeModal(e){
+  if(!e||e.target===document.getElementById('modal'))
+    document.getElementById('modal').classList.remove('open');
+}
+
+/* =====================================================================
+   統計
+   ===================================================================== */
+function calcStats(){
+  const total   = participants.length;
+  const checked = participants.filter(p=>p.checked).length;
+  return{ total, checked, amount:checked*FEE };
+}
+
+/* =====================================================================
+   五十音
+   ===================================================================== */
+function buildKanaGrid(){
+  const grid = document.getElementById('kana-grid');
+  // 代表者（各家族の最初のメンバー）のよみがなで判定
+  const repYomis = new Set();
+  getFamilies().forEach(members=>{
+    const rep = members[0];
+    if(rep.yomi) repYomis.add(rep.yomi);
+  });
+
+  grid.innerHTML = KANA_ROWS.map(r=>{
+    const has = [...repYomis].some(y=>r.chars.some(c=>y.startsWith(c)));
+    const cls = participants.length===0 ? 'kana-btn'
+              : has ? 'kana-btn has-member' : 'kana-btn no-member';
+    const isA = activeKana===r.row;
+    return `<button class="${cls}${isA?' active':''}" onclick="selectKana('${r.row}')">
+      <div style="font-size:.64rem;font-weight:600;opacity:.65;margin-bottom:1px">${r.label}</div>
+      <div>${r.row}</div>
+    </button>`;
+  }).join('');
+}
+
+function selectKana(row){
+  if(activeKana===row){ resetKana(); return; }
+  activeKana=row;
+  document.getElementById('searchInput').value='';
+  document.getElementById('searchInput').classList.add('kana-mode');
+  document.getElementById('searchInput').placeholder='（五十音で絞り込み中）';
+  buildKanaGrid(); updateKanaLabel(); renderReception();
+}
+function resetKana(){
+  activeKana=null;
+  const si=document.getElementById('searchInput');
+  si.classList.remove('kana-mode');
+  si.placeholder='🔍 氏名・家族IDで検索（例：織田 ／ F01）';
+  buildKanaGrid();
+  document.getElementById('kana-active-label').style.display='none';
+  renderReception();
+}
+function updateKanaLabel(){
+  const r=KANA_ROWS.find(x=>x.row===activeKana);
+  if(!r)return;
+  document.getElementById('kana-active-text').textContent=r.label;
+  document.getElementById('kana-active-label').style.display='flex';
+}
+function yomiMatchesRow(yomi,row){
+  if(!yomi)return false;
+  const r=KANA_ROWS.find(x=>x.row===row);
+  return r?r.chars.some(c=>yomi.startsWith(c)):false;
+}
+
+/* =====================================================================
+   検索
+   ===================================================================== */
+function onSearchInput(){
+  const val=document.getElementById('searchInput').value;
+  if(val.length>0&&activeKana){
+    activeKana=null;
+    const si=document.getElementById('searchInput');
+    si.classList.remove('kana-mode');
+    si.placeholder='🔍 氏名・家族IDで検索（例：織田 ／ F01）';
+    document.getElementById('kana-active-label').style.display='none';
+    buildKanaGrid();
+  }
+  renderReception();
+}
+function clearSearch(){
+  document.getElementById('searchInput').value='';
+  document.getElementById('searchInput').classList.remove('kana-mode');
+  document.getElementById('searchInput').placeholder='🔍 氏名・家族IDで検索（例：織田 ／ F01）';
+  activeKana=null; buildKanaGrid();
+  document.getElementById('kana-active-label').style.display='none';
+  renderReception();
+  document.getElementById('searchInput').focus();
+}
+
+/* =====================================================================
+   ① 受付画面
+   ===================================================================== */
+function renderReception(){
+  const q   = document.getElementById('searchInput').value.trim().toLowerCase();
+  const res = document.getElementById('reception-results');
+  const st  = calcStats();
+
+  document.getElementById('h-total').textContent   = st.total;
+  document.getElementById('h-checked').textContent = st.checked;
+  document.getElementById('h-amount').textContent  = st.amount.toLocaleString();
+
+  let hitFids;
+  if(activeKana){
+    // 代表者（よみがな持ち最初の人）で絞り込み
+    hitFids=[];
+    getFamilies().forEach((members,fid)=>{
+      const rep=members.find(p=>p.yomi)||members[0];
+      if(yomiMatchesRow(rep.yomi,activeKana)) hitFids.push(fid);
+    });
+  } else if(q){
+    const matched=new Set(
+      participants.filter(p=>
+        p.name.toLowerCase().includes(q)||
+        p.familyId.toLowerCase().includes(q)||
+        (p.yomi&&p.yomi.includes(q))
+      ).map(p=>p.familyId)
+    );
+    hitFids=[...matched];
+  } else {
+    res.innerHTML='<div class="hint">五十音ボタンか、氏名・IDで検索してください</div>';
+    return;
+  }
+
+  if(!hitFids.length){
+    const label=activeKana?KANA_ROWS.find(x=>x.row===activeKana)?.label:'「'+escHtml(q)+'」';
+    res.innerHTML='<div class="hint">'+label+' に該当する方は見つかりませんでした</div>';
+    return;
+  }
+
+  const families=getFamilies();
+  res.innerHTML=hitFids.map(fid=>buildFamilyCard(fid,families.get(fid))).join('');
+}
+
+/* 家族カードHTML */
+function buildFamilyCard(fid, members){
+  if(!members) return '';
+  const targets = members.filter(isCheckinTarget);
+  const status  = familyStatus(members);
+  const rep     = members[0];
+  const paid    = paidAmount(members);
+  const total   = totalAmount(members);
+
+  const cardCls = status==='done'?'is-done':status==='partial'?'is-partial':'';
+
+  // ヘッダー：グループタグ一覧（ユニーク）
+  const grps = [...new Set(targets.map(p=>p.group).filter(Boolean))];
+  const gTags = grps.map(g=>`<span class="fc-gtag" style="background:${gColor(g)}">${g}</span>`).join('');
+
+  // メンバー行
+  const memberRows = members.map(m=>{
+    const isTarget = true; // 全員受付・集金対象
+    const btnCls   = m.checked ? 'done' : 'ready';
+    const btnTxt   = m.checked ? '✓済' : '受付';
+    const gBadge   = m.group
+      ? `<span class="member-group-badge" style="background:${gColor(m.group)}" title="シェア会">${escHtml(m.group)}</span>` : '';
+
+    const isRep = (m === members[0]); // 代表者フラグ
+
+    return `<div class="member-row">
+      <div class="member-left">
+        <span class="role-dot"></span>
+        <div>
+          <div class="member-yomi">${isRep ? '<span class="rep-crown">代表</span>' : ''}${escHtml(m.yomi)}</div>
+          <div class="member-name">${escHtml(m.name)}</div>
+        </div>
+      </div>
+      <div class="member-right">
+        ${gBadge}
+        <span class="member-fee-tag" style="font-size:.82rem;color:var(--ink-sub)">¥${FEE.toLocaleString()}</span>
+        <button class="btn-member ${btnCls}"
+          onclick="doCheckinOne('${escHtml(fid)}','${escHtml(m.name)}')">${btnTxt}</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  // 合計表示
+  const summaryRight = status==='done'
+    ? `<span class="fc-amount-sub">全員受付済</span><span class="fc-amount">¥${total.toLocaleString()}</span>`
+    : status==='partial'
+      ? `<span class="fc-amount-sub" style="color:var(--amber)">済 ¥${paid.toLocaleString()} /</span><span class="fc-amount">計 ¥${total.toLocaleString()}</span>`
+      : `<span class="fc-amount">¥${total.toLocaleString()}</span>`;
+
+  // 一括ボタン（全員受付対象）
+  let actions='';
+  if(status==='done'){
+    actions=`<button class="btn-checkin-all done">✅ 全員受付済</button>
+      <button class="btn-undo" onclick="undoAll('${escHtml(fid)}')">↩ 取消</button>
+      <button class="btn-guide" onclick="showGuide('${escHtml(fid)}')">📍 案内</button>`;
+  } else {
+    const btnCls = status==='partial' ? 'partial' : 'ready';
+    const btnTxt = status==='partial'
+      ? `🎫 残り全員を受付（¥${(total-paid).toLocaleString()}）`
+      : `🎫 全員まとめて受付（¥${total.toLocaleString()}）`;
+    actions=`<button class="btn-checkin-all ${btnCls}" onclick="doCheckinAll('${escHtml(fid)}')">${btnTxt}</button>`;
+    if(status==='partial'){
+      actions+=`<button class="btn-undo" onclick="undoAll('${escHtml(fid)}')">↩ 取消</button>`;
+    }
+  }
+
+  return `<div class="family-card ${cardCls}">
+    <div class="fc-head">
+      <div class="fc-head-left">
+        <span class="fc-id">${escHtml(fid)}</span>
+        <span class="fc-desc">${escHtml(rep.desc)||'個人'}</span>
+      </div>
+      <div class="fc-group-tags">${gTags}</div>
+    </div>
+    <div class="fc-members">${memberRows}</div>
+    <div class="fc-summary">
+      <span class="fc-summary-left">${members.length}名（¥${FEE.toLocaleString()}×${members.length}）</span>
+      <div class="fc-summary-right">${summaryRight}</div>
+    </div>
+    <div class="fc-actions">${actions}</div>
+  </div>`;
+}
+
+/* ロールドット判定 */
+function getRoleDot(desc, members, m){
+  // 代表者のdescから「保護者N名」「子供N名」「支援者N名」を解析
+  // 順番に割り当て
+  if(!desc) return 'parent';
+  const parsed = parseDesc(desc);
+  const idx = members.indexOf(m);
+  let cur=0;
+  for(const {role,count} of parsed){
+    if(idx<cur+count) return role;
+    cur+=count;
+  }
+  return 'other';
+}
+
+function parseDesc(desc){
+  const result=[];
+  const patterns=[
+    {re:/保護者(\d+)名/,role:'parent'},
+    {re:/支援者(\d+)名/,role:'support'},
+    {re:/子供(\d+)名/,role:'child'},
+  ];
+  let rest=desc;
+  // 登場順に解析
+  const parts=[];
+  let tmp=desc;
+  const allTokens=/(保護者|支援者|子供)(\d+)名/g;
+  let m;
+  while((m=allTokens.exec(desc))!==null){
+    const roleMap={'保護者':'parent','支援者':'support','子供':'child'};
+    parts.push({role:roleMap[m[1]],count:parseInt(m[2])});
+  }
+  return parts.length ? parts : [{role:'parent',count:1}];
+}
+
+/* =====================================================================
+   ② 参加者一覧
+   ===================================================================== */
+function renderList(){
+  const filter   =document.getElementById('listFilter').value;
+  const grpFilter=document.getElementById('listGroup').value;
+  const groups=[...new Set(participants.map(p=>p.group).filter(Boolean))].sort();
+  const lgEl=document.getElementById('listGroup');
+  const cur=lgEl.value;
+  lgEl.innerHTML='<option value="">グループ全て</option>';
+  groups.forEach(g=>{
+    lgEl.innerHTML+=`<option value="${escHtml(g)}" ${cur===g?'selected':''}>${g}グループ</option>`;
+  });
+
+  let data=[...participants];
+  if(grpFilter) data=data.filter(p=>p.group===grpFilter);
+  if(filter==='unchecked') data=data.filter(p=>!p.checked);
+  if(filter==='checked')   data=data.filter(p=> p.checked);
+
+  document.getElementById('list-count').textContent=data.length+'名表示中';
+  document.getElementById('list-tbody').innerHTML=data.map(p=>`
+    <tr class="${p.checked?'row-done':''}">
+      <td>${escHtml(p.familyId)}</td>
+      <td style="font-size:.82rem;color:var(--ink-sub)">${escHtml(p.yomi)}</td>
+      <td><b>${escHtml(p.name)}</b></td>
+      <td style="text-align:center">
+        ${p.group?`<span style="background:${gColor(p.group)};color:#fff;padding:2px 9px;border-radius:9px;font-size:.8rem;font-weight:700">${escHtml(p.group)}</span>`:'<span style="color:#bbb">－</span>'}
+      </td>
+      <td>¥${FEE.toLocaleString()}</td>
+      <td style="text-align:center">
+        ${p.checked?'<span class="tag tag-ok">済</span>':'<span class="tag tag-ng">－</span>'}
+      </td>
+      <td style="font-size:.83rem">${escHtml(p.time)}</td>
+    </tr>`).join('');
+}
+
+/* =====================================================================
+   ③ グループ一覧
+   ===================================================================== */
+function renderGroup(){
+  const groups=[...new Set(participants.filter(p=>p.group).map(p=>p.group))].sort();
+  const noGrp=participants.filter(p=>!p.group);
+  const st=calcStats();
+
+  document.getElementById('group-summary').innerHTML=`
+    <div class="gsb-item">参加者 <b>${st.total}</b> 名</div>
+    <div class="gsb-item" style="color:var(--green)">受付済 <b>${st.checked}</b> 名</div>
+    <div class="gsb-item" style="color:var(--red)">未受付 <b>${st.total-st.checked}</b> 名</div>
+    <div class="gsb-item" style="color:var(--amber)">集金額 <b>¥${st.amount.toLocaleString()}</b></div>`;
+
+  document.getElementById('group-grid').innerHTML=groups.map(grp=>{
+    const members=participants.filter(p=>p.group===grp);
+    const familyIds=[...new Set(members.map(p=>p.familyId))];
+    const checkedCount=members.filter(p=>p.checked).length;
+    const pct=members.length?Math.round(checkedCount/members.length*100):0;
+    const color=gColor(grp);
+    // このグループに属する個人ごとにチップを生成（代表者でなく本人の名前）
+    const chips=members.map(p=>{
+      const shortName=p.name.replace(/[　\s].*/,'');
+      return `<span class="family-chip ${p.checked?'done':''}">${escHtml(shortName)}${p.checked?' ✓':''}</span>`;
+    }).join('');
+    return `<div class="group-card">
+      <div class="group-card-head" style="background:${color}">
+        <span class="group-name-big">${escHtml(grp)}グループ</span>
+        <span class="group-counts">${members.length}名<br>受付 ${checkedCount}/${members.length}（${pct}%）</span>
+      </div>
+      <div class="group-families">${chips}</div>
+      <div class="group-progress"><div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div></div>
+    </div>`;
+  }).join('');
+
+  const ng=document.getElementById('no-group-section');
+  if(noGrp.length){
+    const checkedNg=noGrp.filter(p=>p.checked).length;
+    const pctNg=Math.round(checkedNg/noGrp.length*100);
+    // 個人ごとにチップ生成・受付済で色変化
+    const chips=noGrp.map(p=>{
+      const shortName=p.name.replace(/[　\s].*/,'');
+      return `<span class="family-chip ${p.checked?'done':''}">${escHtml(shortName)}${p.checked?' ✓':''}</span>`;
+    }).join('');
+    ng.innerHTML=`<div class="no-group-card" style="margin-top:12px">
+      <div class="no-group-head">📋 シェア会未参加（${noGrp.length}名　受付 ${checkedNg}/${noGrp.length}）</div>
+      <div class="no-group-families">${chips}</div>
+      <div class="group-progress"><div class="progress-bar"><div class="progress-fill" style="width:${pctNg}%;background:#888"></div></div></div>
+    </div>`;
+  } else { ng.innerHTML=''; }
+}
+
+/* =====================================================================
+   CSV 出力
+   ===================================================================== */
+function exportCSV(){
+  if(!participants.length){showToast('データがありません');return;}
+  let txt='家族ID,氏名,よみがな,区分,シェア会G,参加費,受付,受付時刻\n';
+  const families=getFamilies();
+  families.forEach((members,fid)=>{
+    members.forEach(p=>{
+      const isFirst = members[0]===p;
+      txt+=[p.familyId, p.name, p.yomi, isFirst?p.desc:'-',
+        p.group||'-', FEE,
+        p.checked?'済':'未', p.time].join(',')+'\n';
+    });
+  });
+  const blob=new Blob(['\uFEFF'+txt],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='受付結果_'+fmtDate()+'.csv';
+  a.click();
+  showToast('💾 CSV出力しました','green');
+}
+function fmtDate(){
+  const d=new Date();
+  return[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),
+    String(d.getDate()).padStart(2,'0'),String(d.getHours()).padStart(2,'0'),
+    String(d.getMinutes()).padStart(2,'0')].join('');
+}
+
+/* =====================================================================
+   ユーティリティ
+   ===================================================================== */
+function clearData(){
+  if(!confirm('全データを初期化します。よろしいですか？'))return;
+  participants=[];localStorage.removeItem(STORE_KEY);
+  activeKana=null;buildKanaGrid();renderAll();showToast('🗑 初期化しました');
+}
+function switchTab(name){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  const idx={'reception':0,'list':1,'group':2};
+  document.querySelectorAll('.tab')[idx[name]].classList.add('active');
+  if(name==='list')  renderList();
+  if(name==='group') renderGroup();
+}
+function renderAll(){
+  renderReception();
+  if(document.getElementById('page-list').classList.contains('active'))  renderList();
+  if(document.getElementById('page-group').classList.contains('active')) renderGroup();
+}
+let toastTimer;
+function showToast(msg,type=''){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.className='toast'+(type?' '+type:'');
+  el.classList.add('show'); clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>el.classList.remove('show'),2800);
+}
+function escHtml(str){
+  if(str==null)return'';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+</script>
+</body>
+</html>
