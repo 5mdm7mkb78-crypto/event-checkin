@@ -66,13 +66,15 @@ header{
 .kana-panel-head{padding:8px 14px;background:var(--blue-light);border-bottom:1px solid var(--border);
   font-size:.82rem;font-weight:700;color:var(--blue);display:flex;align-items:center;gap:8px}
 .kana-grid{display:grid;grid-template-columns:repeat(10,1fr);gap:4px;padding:8px}
-.kana-btn{padding:9px 2px;font-size:.95rem;font-weight:700;border:none;border-radius:7px;
+.kana-btn{padding:9px 2px;font-size:.95rem;font-weight:700;border:1.5px solid transparent;border-radius:7px;
   cursor:pointer;font-family:inherit;transition:.15s;background:var(--bg);color:var(--ink);
   text-align:center;-webkit-user-select:none;user-select:none;line-height:1.1}
 .kana-btn:active{transform:scale(.93)}
-.kana-btn.active{background:var(--blue);color:#fff;box-shadow:0 2px 8px rgba(26,95,168,.35)}
-.kana-btn.has-member{color:var(--blue);font-weight:700}
+.kana-btn.active{background:var(--blue);color:#fff;border-color:var(--blue);box-shadow:0 2px 8px rgba(26,95,168,.35)}
+.kana-btn.has-member{color:var(--blue);border-color:var(--blue);background:#fff;font-weight:700}
 .kana-btn.no-member{opacity:.28;pointer-events:none}
+.kana-row-label{font-size:.64rem;font-weight:600;margin-bottom:1px;display:block}
+.kana-row-main{display:block;font-size:.95rem}
 .kana-active-label{padding:7px 14px;font-size:.88rem;color:var(--ink-sub);
   display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--border)}
 .kana-active-label b{color:var(--blue)}
@@ -305,7 +307,9 @@ td{padding:9px 10px;vertical-align:middle}
   <div class="table-wrap">
     <table>
       <thead><tr>
-        <th>家族ID</th><th>よみがな</th><th>氏名</th>
+        <th onclick="sortList('familyId')" style="cursor:pointer;user-select:none">家族ID <span id="sort-familyId">↕</span></th>
+        <th onclick="sortList('yomi')" style="cursor:pointer;user-select:none">よみがな <span id="sort-yomi">↕</span></th>
+        <th>氏名</th>
         <th>シェア会G</th><th>参加費</th><th>受付</th><th>受付時刻</th>
       </tr></thead>
       <tbody id="list-tbody"></tbody>
@@ -592,8 +596,8 @@ function buildKanaGrid(){
               : has ? 'kana-btn has-member' : 'kana-btn no-member';
     const isA = activeKana===r.row;
     return `<button class="${cls}${isA?' active':''}" onclick="selectKana('${r.row}')">
-      <div style="font-size:.64rem;font-weight:600;opacity:.65;margin-bottom:1px">${r.label}</div>
-      <div>${r.row}</div>
+      <span class="kana-row-label">${r.label}</span>
+      <span class="kana-row-main">${r.row}</span>
     </button>`;
   }).join('');
 }
@@ -682,8 +686,9 @@ function renderReception(){
     );
     hitFids=[...matched];
   } else {
-    res.innerHTML='<div class="hint">五十音ボタンか、氏名・IDで検索してください</div>';
-    return;
+    // 何も選択していない→全家族を表示
+    const families2=getFamilies();
+    hitFids=[...families2.keys()];
   }
 
   if(!hitFids.length){
@@ -817,6 +822,19 @@ function parseDesc(desc){
 /* =====================================================================
    ② 参加者一覧
    ===================================================================== */
+let listSortKey='familyId', listSortDir=1;
+
+function sortList(key){
+  if(listSortKey===key){ listSortDir*=-1; }
+  else{ listSortKey=key; listSortDir=1; }
+  // ソートアイコン更新
+  ['familyId','yomi'].forEach(k=>{
+    const el=document.getElementById('sort-'+k);
+    if(el) el.textContent = k===listSortKey ? (listSortDir===1?'↑':'↓') : '↕';
+  });
+  renderList();
+}
+
 function renderList(){
   const filter   =document.getElementById('listFilter').value;
   const grpFilter=document.getElementById('listGroup').value;
@@ -828,16 +846,33 @@ function renderList(){
     lgEl.innerHTML+=`<option value="${escHtml(g)}" ${cur===g?'selected':''}>${g}グループ</option>`;
   });
 
+  // 代表者フラグを付与（家族内の最初のメンバー）
+  const familyFirstMap={};
+  participants.forEach(p=>{
+    if(!familyFirstMap[p.familyId]) familyFirstMap[p.familyId]=p.name;
+  });
+
   let data=[...participants];
   if(grpFilter) data=data.filter(p=>p.group===grpFilter);
   if(filter==='unchecked') data=data.filter(p=>!p.checked);
   if(filter==='checked')   data=data.filter(p=> p.checked);
 
+  // ソート
+  data.sort((a,b)=>{
+    const av=a[listSortKey]||'', bv=b[listSortKey]||'';
+    if(av<bv) return -1*listSortDir;
+    if(av>bv) return  1*listSortDir;
+    return 0;
+  });
+
   document.getElementById('list-count').textContent=data.length+'名表示中';
-  document.getElementById('list-tbody').innerHTML=data.map(p=>`
-    <tr class="${p.checked?'row-done':''}">
-      <td>${escHtml(p.familyId)}</td>
-      <td style="font-size:.82rem;color:var(--ink-sub)">${escHtml(p.yomi)}</td>
+  document.getElementById('list-tbody').innerHTML=data.map(p=>{
+    const isRep = familyFirstMap[p.familyId]===p.name;
+    return `<tr class="${p.checked?'row-done':''}">
+      <td style="font-size:.85rem">${escHtml(p.familyId)}</td>
+      <td style="font-size:.82rem;color:var(--ink-sub)">
+        ${isRep?'<span class="rep-crown">代表</span>':''}${escHtml(p.yomi)}
+      </td>
       <td><b>${escHtml(p.name)}</b></td>
       <td style="text-align:center">
         ${p.group?`<span style="background:${gColor(p.group)};color:#fff;padding:2px 9px;border-radius:9px;font-size:.8rem;font-weight:700">${escHtml(p.group)}</span>`:'<span style="color:#bbb">－</span>'}
@@ -847,7 +882,8 @@ function renderList(){
         ${p.checked?'<span class="tag tag-ok">済</span>':'<span class="tag tag-ng">－</span>'}
       </td>
       <td style="font-size:.83rem">${escHtml(p.time)}</td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
 }
 
 /* =====================================================================
