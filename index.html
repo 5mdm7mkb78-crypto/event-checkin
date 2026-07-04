@@ -13,13 +13,15 @@
   --red:#c0392b;--amber:#d97706;--amber-light:#fef3c7;
   --radius:14px;--radius-sm:8px;
   --shadow:0 2px 12px rgba(0,0,0,.09);--shadow-lg:0 8px 32px rgba(0,0,0,.15);
+  --header-h:54px;--tabs-h:50px;
+  --page-px:14px;--page-pt:14px;--page-pb:80px;
 }
 body{font-family:'Hiragino Kaku Gothic ProN','Hiragino Sans',Meiryo,sans-serif;
   background:var(--bg);color:var(--ink);font-size:16px;min-height:100vh;overscroll-behavior:none}
 
 /* ===== ヘッダー ===== */
 header{
-  background:var(--blue);color:#fff;padding:0 14px;height:54px;
+  background:var(--blue);color:#fff;padding:0 14px;height:var(--header-h);
   display:flex;align-items:center;justify-content:space-between;
   position:sticky;top:0;z-index:200;box-shadow:0 2px 12px rgba(0,0,0,.25);
   gap:10px;
@@ -35,14 +37,25 @@ header{
 .hstat-amber{background:rgba(217,119,6,.35)}
 
 /* ===== タブ ===== */
-.tabs{display:flex;background:#fff;border-bottom:2px solid var(--border);position:sticky;top:54px;z-index:190}
-.tab{flex:1;padding:13px 4px;text-align:center;font-size:.95rem;font-weight:600;
+.tabs{display:flex;background:#fff;border-bottom:2px solid var(--border);position:sticky;
+  top:var(--header-h);height:var(--tabs-h);z-index:190}
+.tab{flex:1;padding:4px;text-align:center;font-size:.95rem;font-weight:600;
   border:none;background:none;cursor:pointer;color:var(--ink-sub);
-  border-bottom:3px solid transparent;margin-bottom:-2px;transition:.18s;font-family:inherit}
+  border-bottom:3px solid transparent;margin-bottom:-2px;transition:.18s;font-family:inherit;
+  display:flex;align-items:center;justify-content:center}
 .tab.active{color:var(--blue);border-bottom-color:var(--blue)}
 
 /* ===== ページ ===== */
-.page{display:none;padding:14px 14px 80px}.page.active{display:block}
+.page{display:none;padding:var(--page-pt) var(--page-px) var(--page-pb)}.page.active{display:block}
+
+/* ===== 受付タブ：上部固定フィルター（検索・五十音） ===== */
+.sticky-filters{
+  position:sticky;top:calc(var(--header-h) + var(--tabs-h));z-index:150;
+  background:var(--bg);
+  margin:calc(-1*var(--page-pt)) calc(-1*var(--page-px)) 0;
+  padding:var(--page-pt) var(--page-px) 0;
+  box-shadow:0 6px 10px -6px rgba(0,0,0,.1);
+}
 
 /* ===== アクションバー ===== */
 .action-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
@@ -66,23 +79,20 @@ header{
 .kana-panel-head{padding:8px 14px;background:var(--blue-light);border-bottom:1px solid var(--border);
   font-size:.82rem;font-weight:700;color:var(--blue);display:flex;align-items:center;gap:8px}
 .kana-grid{display:grid;grid-template-columns:repeat(10,1fr);gap:4px;padding:8px}
-.kana-btn{padding:9px 2px;font-size:.95rem;font-weight:700;border:1.5px solid transparent;border-radius:7px;
+.kana-btn{padding:11px 2px;font-size:.8rem;font-weight:700;border:1.5px solid transparent;border-radius:7px;
   cursor:pointer;font-family:inherit;transition:.15s;background:var(--bg);color:var(--ink);
-  text-align:center;-webkit-user-select:none;user-select:none;line-height:1.1}
+  text-align:center;-webkit-user-select:none;user-select:none;line-height:1.1;
+  display:flex;align-items:center;justify-content:center}
 .kana-btn:active{transform:scale(.93)}
+/* 選択中は背景と文字色を反転させて明確に表示 */
 .kana-btn.active{background:var(--blue);color:#fff;border-color:var(--blue);box-shadow:0 2px 8px rgba(26,95,168,.35)}
 .kana-btn.has-member{color:var(--blue);border-color:var(--blue);background:#fff;font-weight:700}
+.kana-btn.has-member.active{color:#fff;background:var(--blue)}
 .kana-btn.no-member{opacity:.28;pointer-events:none}
-.kana-row-label{font-size:.64rem;font-weight:600;margin-bottom:1px;display:block}
-.kana-row-main{display:block;font-size:.95rem}
-.kana-active-label{padding:7px 14px;font-size:.88rem;color:var(--ink-sub);
-  display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--border)}
-.kana-active-label b{color:var(--blue)}
-.kana-reset-btn{font-size:.82rem;color:var(--ink-sub);background:var(--bg);border:none;
-  cursor:pointer;padding:4px 8px;border-radius:6px;font-family:inherit}
+.kana-row-label{font-weight:700}
 
 /* ===== 検索欄 ===== */
-.search-wrap{position:relative;margin-bottom:12px}
+.search-wrap{position:relative;flex:1 1 200px;min-width:160px}
 .search-input{width:100%;padding:15px 50px 15px 17px;font-size:1.1rem;
   border:2.5px solid var(--border);border-radius:var(--radius);outline:none;
   font-family:inherit;background:#fff;box-shadow:var(--shadow);transition:.18s;color:var(--ink)}
@@ -241,6 +251,98 @@ td{padding:9px 10px;vertical-align:middle}
   .group-grid{grid-template-columns:1fr}
   .header-title{font-size:.9rem}
 }
+
+/* =====================================================================
+   iPad（縦向き中心）向け見やすさ調整
+   1列レイアウトは維持し、文字サイズ・余白・タップ領域を拡大
+   ===================================================================== */
+@media(min-width:700px){
+  :root{
+    --header-h:64px;--tabs-h:58px;
+    --page-px:26px;--page-pt:20px;--page-pb:90px;
+  }
+  body{font-size:17px}
+
+  /* ヘッダー */
+  header{padding:0 22px}
+  .header-title{font-size:1.2rem;gap:8px}
+  .hstat{padding:7px 15px;font-size:.92rem}
+  .hstat-num{font-size:1.25rem}
+
+  /* タブ */
+  .tab{font-size:1.08rem}
+
+  /* アクションバー */
+  .file-label,.btn{padding:14px 22px;font-size:1.05rem}
+  .btn-sm{padding:11px 16px;font-size:.95rem}
+
+  /* 五十音パネル */
+  .kana-panel-head{padding:11px 18px;font-size:.92rem}
+  .kana-grid{gap:6px;padding:12px}
+  .kana-btn{padding:16px 2px}
+  .kana-row-label{font-size:.95rem}
+
+  /* 検索欄 */
+  .search-input{padding:16px 50px 16px 18px;font-size:1.15rem}
+  .search-clear{width:34px;height:34px;font-size:1.1rem}
+  .hint{font-size:1.15rem;padding:60px 20px}
+
+  /* 家族カード */
+  .family-card{margin-bottom:18px;border-radius:16px}
+  .fc-head{padding:15px 20px}
+  .fc-id{font-size:1.08rem}
+  .fc-desc{font-size:.9rem;padding:4px 10px}
+  .fc-gtag{font-size:.9rem;padding:4px 12px}
+
+  .fc-members{padding:8px 20px}
+  .member-row{padding:14px 4px;gap:12px}
+  .member-yomi{font-size:.85rem}
+  .member-name{font-size:1.25rem}
+  .member-group-badge{font-size:.85rem;padding:3px 10px}
+  .member-fee-tag{font-size:.92rem !important}
+  .rep-crown{font-size:.78rem;padding:2px 7px}
+
+  .btn-member{padding:11px 20px;font-size:.98rem;border-radius:9px}
+
+  .fc-summary{padding:13px 20px}
+  .fc-summary-left{font-size:.95rem}
+  .fc-amount{font-size:1.7rem}
+  .fc-amount-sub{font-size:.92rem}
+
+  .fc-actions{padding:15px 18px;gap:12px}
+  .btn-checkin-all{padding:19px;font-size:1.15rem}
+  .btn-undo,.btn-guide{padding:19px 18px;font-size:.98rem}
+
+  /* 参加者一覧テーブル */
+  .filter-select{padding:12px 16px;font-size:1.05rem}
+  .list-count{font-size:.95rem}
+  table{font-size:1.05rem}
+  thead th{padding:14px 14px;font-size:1rem}
+  td{padding:13px 14px}
+  .tag{font-size:.88rem;padding:3px 10px}
+
+  /* グループ一覧 */
+  .group-summary-bar{padding:17px 20px}
+  .gsb-item{font-size:1.05rem}.gsb-item b{font-size:1.3rem}
+  .group-card-head{padding:16px 18px}
+  .group-name-big{font-size:1.5rem}
+  .group-counts{font-size:.92rem}
+  .family-chip{font-size:.95rem;padding:6px 13px}
+  .no-group-head{font-size:1.02rem;padding:14px 18px}
+
+  /* モーダル */
+  .modal{max-width:420px;padding:32px 26px 24px}
+  .modal-ok{font-size:3.2rem}
+  .modal-title{font-size:1rem}
+  .modal-name{font-size:1.85rem}
+  .modal-amount-label{font-size:.98rem}
+  .modal-amount-num{font-size:2.2rem}
+  .modal-group-row-name{font-size:1rem}
+  .modal-group-row-g{font-size:1.7rem}
+  .modal-close{padding:19px;font-size:1.1rem}
+
+  .toast{font-size:1.05rem;padding:14px 30px}
+}
 </style>
 </head>
 <body>
@@ -261,29 +363,26 @@ td{padding:9px 10px;vertical-align:middle}
 
 <!-- ① 受付 -->
 <div id="page-reception" class="page active">
-  <div class="action-bar">
-    <label class="file-label" for="csvFile">📂 CSV読込</label>
-    <input type="file" id="csvFile" accept=".csv">
-    <button class="btn btn-blue" onclick="exportCSV()">💾 CSV出力</button>
-    <button class="btn btn-outline btn-sm" onclick="clearData()">🗑 初期化</button>
-  </div>
-
-  <div class="kana-panel">
-    <div class="kana-panel-head">🔤 よみがなで絞り込む
-      <span style="font-weight:400;color:var(--ink-sub);font-size:.76rem">（代表者のよみがなで絞り込みます）</span>
+  <div class="sticky-filters">
+    <div class="action-bar">
+      <label class="file-label" for="csvFile">📂 CSV読込</label>
+      <input type="file" id="csvFile" accept=".csv">
+      <button class="btn btn-blue" onclick="exportCSV()">💾 CSV出力</button>
+      <button class="btn btn-outline btn-sm" onclick="clearData()">🗑 初期化</button>
+      <div class="search-wrap">
+        <input type="search" id="searchInput" class="search-input"
+          placeholder="🔍 氏名・家族IDで検索（例：織田 ／ F01）"
+          oninput="onSearchInput()" autocomplete="off" autocorrect="off" spellcheck="false">
+        <button class="search-clear" onclick="clearSearch()">✕</button>
+      </div>
     </div>
-    <div class="kana-grid" id="kana-grid"></div>
-    <div class="kana-active-label" id="kana-active-label" style="display:none">
-      <span><b id="kana-active-text"></b> の方を表示中</span>
-      <button class="kana-reset-btn" onclick="resetKana()">✕ 解除</button>
-    </div>
-  </div>
 
-  <div class="search-wrap">
-    <input type="search" id="searchInput" class="search-input"
-      placeholder="🔍 氏名・家族IDで検索（例：織田 ／ F01）"
-      oninput="onSearchInput()" autocomplete="off" autocorrect="off" spellcheck="false">
-    <button class="search-clear" onclick="clearSearch()">✕</button>
+    <div class="kana-panel">
+      <div class="kana-panel-head">🔤 よみがなで絞り込む
+        <span style="font-weight:400;color:var(--ink-sub);font-size:.76rem">（代表者のよみがなで絞り込みます／もう一度押すと解除）</span>
+      </div>
+      <div class="kana-grid" id="kana-grid"></div>
+    </div>
   </div>
 
   <div id="reception-results">
@@ -597,18 +696,18 @@ function buildKanaGrid(){
     const isA = activeKana===r.row;
     return `<button class="${cls}${isA?' active':''}" onclick="selectKana('${r.row}')">
       <span class="kana-row-label">${r.label}</span>
-      <span class="kana-row-main">${r.row}</span>
     </button>`;
   }).join('');
 }
 
+/* 絞り込むボタンはトグル式：もう一度押すと解除（resetKana） */
 function selectKana(row){
   if(activeKana===row){ resetKana(); return; }
   activeKana=row;
   document.getElementById('searchInput').value='';
   document.getElementById('searchInput').classList.add('kana-mode');
   document.getElementById('searchInput').placeholder='（五十音で絞り込み中）';
-  buildKanaGrid(); updateKanaLabel(); renderReception();
+  buildKanaGrid(); renderReception();
 }
 function resetKana(){
   activeKana=null;
@@ -616,14 +715,7 @@ function resetKana(){
   si.classList.remove('kana-mode');
   si.placeholder='🔍 氏名・家族IDで検索（例：織田 ／ F01）';
   buildKanaGrid();
-  document.getElementById('kana-active-label').style.display='none';
   renderReception();
-}
-function updateKanaLabel(){
-  const r=KANA_ROWS.find(x=>x.row===activeKana);
-  if(!r)return;
-  document.getElementById('kana-active-text').textContent=r.label;
-  document.getElementById('kana-active-label').style.display='flex';
 }
 function yomiMatchesRow(yomi,row){
   if(!yomi)return false;
@@ -641,7 +733,6 @@ function onSearchInput(){
     const si=document.getElementById('searchInput');
     si.classList.remove('kana-mode');
     si.placeholder='🔍 氏名・家族IDで検索（例：織田 ／ F01）';
-    document.getElementById('kana-active-label').style.display='none';
     buildKanaGrid();
   }
   renderReception();
@@ -651,7 +742,6 @@ function clearSearch(){
   document.getElementById('searchInput').classList.remove('kana-mode');
   document.getElementById('searchInput').placeholder='🔍 氏名・家族IDで検索（例：織田 ／ F01）';
   activeKana=null; buildKanaGrid();
-  document.getElementById('kana-active-label').style.display='none';
   renderReception();
   document.getElementById('searchInput').focus();
 }
