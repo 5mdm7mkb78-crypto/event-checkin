@@ -120,11 +120,9 @@ header{
 .fc-desc{font-size:.8rem;color:var(--ink-sub);background:#fff;padding:3px 8px;
   border-radius:5px;border:1px solid var(--border)}
 
-.fc-group-tags{display:flex;gap:5px;flex-wrap:wrap}
-.fc-gtag{padding:3px 10px;border-radius:14px;font-size:.8rem;font-weight:700;color:#fff}
-
-/* ===== メンバー行 ===== */
-.fc-members{padding:5px 14px}
+/* ===== 本体：メンバー行（左）＋全員まとめて受付ボタン（右いっぱいの高さ） ===== */
+.fc-body{display:flex;align-items:stretch}
+.fc-members{flex:1;padding:5px 14px;min-width:0}
 .member-row{display:flex;align-items:center;padding:9px 2px;
   border-bottom:1px solid var(--border);gap:8px;flex-wrap:wrap}
 .member-row:last-child{border:none}
@@ -153,32 +151,21 @@ header{
 .btn-member.done{background:var(--green-light);color:var(--green);border:1.5px solid var(--green)}
 .btn-member.na{background:#eee;color:#bbb;pointer-events:none;font-size:.75rem}
 
-/* ===== 合計行 ===== */
-.fc-summary{padding:9px 16px;background:#f8f9fb;border-top:1px solid var(--border);
-  display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
-.fc-summary-left{font-size:.85rem;color:var(--ink-sub)}
-.fc-summary-right{display:flex;align-items:baseline;gap:6px}
-.fc-amount{font-size:1.45rem;font-weight:700;color:var(--ink)}
-.fc-amount-sub{font-size:.82rem;color:var(--green);font-weight:600}
-
-/* ===== アクション（一括） ===== */
-.fc-actions{padding:11px 13px;display:flex;gap:9px}
-.btn-checkin-all{flex:1;padding:15px;font-size:1rem;font-weight:700;border:none;
-  border-radius:var(--radius-sm);cursor:pointer;font-family:inherit;transition:.15s;
-  display:flex;align-items:center;justify-content:center;gap:7px;
-  -webkit-user-select:none;user-select:none}
+/* ===== 全員まとめて受付ボタン（一番右側／高さは家族の人数分） ===== */
+.btn-checkin-all{
+  flex-shrink:0;width:104px;padding:8px 6px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  border:none;border-left:1.5px solid var(--border);
+  font-family:inherit;font-weight:700;cursor:pointer;transition:.15s;
+  text-align:center;line-height:1.3;-webkit-user-select:none;user-select:none;
+}
 .btn-checkin-all:active{transform:scale(.97)}
-.btn-checkin-all.ready{background:var(--green);color:#fff;box-shadow:0 4px 16px rgba(30,138,80,.28)}
-.btn-checkin-all.done{background:var(--green-light);color:var(--green);border:2px solid var(--green);pointer-events:none}
+.btn-checkin-all .bca-icon{font-size:1.25rem}
+.btn-checkin-all .bca-label{font-size:.76rem}
+.btn-checkin-all .bca-amount{font-size:1.02rem;font-weight:800}
+.btn-checkin-all.ready{background:var(--green);color:#fff}
 .btn-checkin-all.partial{background:var(--amber);color:#fff}
-.btn-undo{padding:15px 13px;font-size:.85rem;font-weight:700;border:1.5px solid var(--border);
-  border-radius:var(--radius-sm);cursor:pointer;font-family:inherit;background:#fff;
-  color:var(--ink-sub);white-space:nowrap;transition:.15s}
-.btn-undo:active{transform:scale(.95)}
-.btn-guide{padding:15px 13px;font-size:.85rem;font-weight:700;border:none;
-  border-radius:var(--radius-sm);cursor:pointer;font-family:inherit;
-  background:var(--blue);color:#fff;white-space:nowrap;transition:.15s}
-.btn-guide:active{transform:scale(.95)}
+.btn-checkin-all.done{background:var(--green-light);color:var(--green);border-left:1.5px solid var(--green)}
 
 /* ===== モーダル ===== */
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);
@@ -292,7 +279,6 @@ td{padding:9px 10px;vertical-align:middle}
   .fc-head{padding:15px 20px}
   .fc-id{font-size:1.08rem}
   .fc-desc{font-size:.9rem;padding:4px 10px}
-  .fc-gtag{font-size:.9rem;padding:4px 12px}
 
   .fc-members{padding:8px 20px}
   .member-row{padding:14px 4px;gap:12px}
@@ -304,14 +290,10 @@ td{padding:9px 10px;vertical-align:middle}
 
   .btn-member{padding:11px 20px;font-size:.98rem;border-radius:9px}
 
-  .fc-summary{padding:13px 20px}
-  .fc-summary-left{font-size:.95rem}
-  .fc-amount{font-size:1.7rem}
-  .fc-amount-sub{font-size:.92rem}
-
-  .fc-actions{padding:15px 18px;gap:12px}
-  .btn-checkin-all{padding:19px;font-size:1.15rem}
-  .btn-undo,.btn-guide{padding:19px 18px;font-size:.98rem}
+  .btn-checkin-all{width:130px;padding:12px 8px;gap:5px}
+  .btn-checkin-all .bca-icon{font-size:1.55rem}
+  .btn-checkin-all .bca-label{font-size:.92rem}
+  .btn-checkin-all .bca-amount{font-size:1.28rem}
 
   /* 参加者一覧テーブル */
   .filter-select{padding:12px 16px;font-size:1.05rem}
@@ -658,11 +640,6 @@ function showCheckinModal(checkedMembers, title){
   document.getElementById('modal').classList.add('open');
 }
 
-function showGuide(familyId){
-  const members = participants.filter(p=>p.familyId===familyId);
-  showCheckinModal(members, 'グループ案内');
-}
-
 function closeModal(e){
   if(!e||e.target===document.getElementById('modal'))
     document.getElementById('modal').classList.remove('open');
@@ -794,7 +771,6 @@ function renderReception(){
 /* 家族カードHTML */
 function buildFamilyCard(fid, members){
   if(!members) return '';
-  const targets = members.filter(isCheckinTarget);
   const status  = familyStatus(members);
   const rep     = members[0];
   const paid    = paidAmount(members);
@@ -802,13 +778,8 @@ function buildFamilyCard(fid, members){
 
   const cardCls = status==='done'?'is-done':status==='partial'?'is-partial':'';
 
-  // ヘッダー：グループタグ一覧（ユニーク）
-  const grps = [...new Set(targets.map(p=>p.group).filter(Boolean))];
-  const gTags = grps.map(g=>`<span class="fc-gtag" style="background:${gColor(g)}">${g}</span>`).join('');
-
   // メンバー行
   const memberRows = members.map(m=>{
-    const isTarget = true; // 全員受付・集金対象
     const btnCls   = m.checked ? 'done' : 'ready';
     const btnTxt   = m.checked ? '✓済' : '受付';
     const gBadge   = m.group
@@ -833,29 +804,20 @@ function buildFamilyCard(fid, members){
     </div>`;
   }).join('');
 
-  // 合計表示
-  const summaryRight = status==='done'
-    ? `<span class="fc-amount-sub">全員受付済</span><span class="fc-amount">¥${total.toLocaleString()}</span>`
-    : status==='partial'
-      ? `<span class="fc-amount-sub" style="color:var(--amber)">済 ¥${paid.toLocaleString()} /</span><span class="fc-amount">計 ¥${total.toLocaleString()}</span>`
-      : `<span class="fc-amount">¥${total.toLocaleString()}</span>`;
-
-  // 一括ボタン（全員受付対象）
-  let actions='';
+  // 右側：全員まとめて受付ボタン（合計金額を内包／再度押すと取消のトグル）
+  let bcaCls, bcaIcon, bcaLabel, bcaAmount;
   if(status==='done'){
-    actions=`<button class="btn-checkin-all done">✅ 全員受付済</button>
-      <button class="btn-undo" onclick="undoAll('${escHtml(fid)}')">↩ 取消</button>
-      <button class="btn-guide" onclick="showGuide('${escHtml(fid)}')">📍 案内</button>`;
+    bcaCls='done'; bcaIcon='✅'; bcaLabel='受付済<br>（取消）'; bcaAmount=`¥${total.toLocaleString()}`;
+  } else if(status==='partial'){
+    bcaCls='partial'; bcaIcon='🎫'; bcaLabel='残り全員<br>受付'; bcaAmount=`¥${(total-paid).toLocaleString()}`;
   } else {
-    const btnCls = status==='partial' ? 'partial' : 'ready';
-    const btnTxt = status==='partial'
-      ? `🎫 残り全員を受付（¥${(total-paid).toLocaleString()}）`
-      : `🎫 全員まとめて受付（¥${total.toLocaleString()}）`;
-    actions=`<button class="btn-checkin-all ${btnCls}" onclick="doCheckinAll('${escHtml(fid)}')">${btnTxt}</button>`;
-    if(status==='partial'){
-      actions+=`<button class="btn-undo" onclick="undoAll('${escHtml(fid)}')">↩ 取消</button>`;
-    }
+    bcaCls='ready'; bcaIcon='🎫'; bcaLabel='全員<br>まとめて<br>受付'; bcaAmount=`¥${total.toLocaleString()}`;
   }
+  const bcaBtn = `<button class="btn-checkin-all ${bcaCls}" onclick="doCheckinAll('${escHtml(fid)}')">
+      <span class="bca-icon">${bcaIcon}</span>
+      <span class="bca-label">${bcaLabel}</span>
+      <span class="bca-amount">${bcaAmount}</span>
+    </button>`;
 
   return `<div class="family-card ${cardCls}">
     <div class="fc-head">
@@ -863,14 +825,11 @@ function buildFamilyCard(fid, members){
         <span class="fc-id">${escHtml(fid)}</span>
         <span class="fc-desc">${escHtml(rep.desc)||'個人'}</span>
       </div>
-      <div class="fc-group-tags">${gTags}</div>
     </div>
-    <div class="fc-members">${memberRows}</div>
-    <div class="fc-summary">
-      <span class="fc-summary-left">${members.length}名（¥${FEE.toLocaleString()}×${members.length}）</span>
-      <div class="fc-summary-right">${summaryRight}</div>
+    <div class="fc-body">
+      <div class="fc-members">${memberRows}</div>
+      ${bcaBtn}
     </div>
-    <div class="fc-actions">${actions}</div>
   </div>`;
 }
 
