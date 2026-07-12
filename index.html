@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>映画上映会 受付システム</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{
@@ -63,7 +64,7 @@ header{
   background:#fff;border:2px dashed var(--border);border-radius:var(--radius-sm);
   cursor:pointer;font-size:.95rem;font-weight:600;color:var(--blue);font-family:inherit;transition:.15s}
 .file-label:hover{border-color:var(--blue);background:var(--blue-light)}
-#csvFile{display:none}
+#importFile{display:none}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;
   padding:12px 18px;font-size:.95rem;font-weight:700;border:none;border-radius:var(--radius-sm);
   cursor:pointer;font-family:inherit;transition:.15s;white-space:nowrap;
@@ -119,6 +120,8 @@ header{
 .family-card.is-done .fc-id{color:var(--green)}
 .fc-desc{font-size:.8rem;color:var(--ink-sub);background:#fff;padding:3px 8px;
   border-radius:5px;border:1px solid var(--border)}
+.fc-absent-tag{font-size:.78rem;font-weight:700;color:var(--red);background:#fdecea;
+  border:1px solid #f3b7ae;padding:3px 10px;border-radius:12px;white-space:nowrap}
 
 /* ===== 本体：メンバー行（左）＋全員まとめて受付ボタン（右いっぱいの高さ） ===== */
 .fc-body{display:flex;align-items:stretch}
@@ -126,6 +129,7 @@ header{
 .member-row{display:flex;align-items:center;padding:9px 2px;
   border-bottom:1px solid var(--border);gap:8px;flex-wrap:wrap}
 .member-row:last-child{border:none}
+.member-row.is-absent-row{background:#fffaf9}
 
 .member-left{display:flex;align-items:center;gap:8px;flex:1;min-width:0}
 .role-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;background:var(--ink-sub)}
@@ -141,6 +145,15 @@ header{
 
 .member-right{display:flex;align-items:center;gap:6px;flex-shrink:0}
 .member-group-badge{font-size:.75rem;font-weight:700;padding:2px 8px;border-radius:10px;color:#fff}
+.absent-toggle{font-size:.72rem;font-weight:700;color:var(--ink-sub);background:#fff;
+  border:1.5px solid var(--border);padding:5px 9px;border-radius:9px;white-space:nowrap;
+  cursor:pointer;font-family:inherit;transition:.15s;-webkit-user-select:none;user-select:none}
+.absent-toggle:active{transform:scale(.94)}
+.absent-toggle.active{color:var(--red);background:#fdecea;border-color:#f3b7ae}
+
+/* 受付タブ用：表示専用（タップ不可）の欠席連絡タグ */
+.absent-tag{font-size:.7rem;font-weight:700;color:var(--red);background:#fdecea;
+  border:1px solid #f3b7ae;padding:2px 7px;border-radius:9px;white-space:nowrap}
 
 /* 個別受付ボタン */
 .btn-member{padding:7px 13px;font-size:.82rem;font-weight:700;border:none;border-radius:7px;
@@ -225,6 +238,8 @@ td{padding:9px 10px;vertical-align:middle}
 .group-families{padding:10px 13px;display:flex;flex-wrap:wrap;gap:6px}
 .family-chip{display:inline-block;background:var(--bg);border:1px solid var(--border);border-radius:18px;padding:5px 11px;font-size:.84rem}
 .family-chip.done{background:#d4edda;border-color:var(--green);color:var(--green)}
+.family-chip.is-absent-chip{border-color:#f3b7ae;color:var(--red)}
+.family-chip.is-absent-chip.done{background:#d4edda;border-color:var(--green);color:var(--green)}
 .group-progress{padding:0 13px 11px}
 .progress-bar{height:6px;background:#eee;border-radius:3px;overflow:hidden}
 .progress-fill{height:100%;background:var(--green);border-radius:3px;transition:.5s}
@@ -285,6 +300,9 @@ td{padding:9px 10px;vertical-align:middle}
   .member-yomi{font-size:.85rem}
   .member-name{font-size:1.25rem}
   .member-group-badge{font-size:.85rem;padding:3px 10px}
+  .absent-toggle{font-size:.85rem;padding:6px 12px}
+  .absent-tag{font-size:.82rem;padding:3px 9px}
+  .fc-absent-tag{font-size:.9rem;padding:4px 12px}
   .member-fee-tag{font-size:.92rem !important}
   .rep-crown{font-size:.78rem;padding:2px 7px}
 
@@ -347,9 +365,9 @@ td{padding:9px 10px;vertical-align:middle}
 <div id="page-reception" class="page active">
   <div class="sticky-filters">
     <div class="action-bar">
-      <label class="file-label" for="csvFile">📂 CSV読込</label>
-      <input type="file" id="csvFile" accept=".csv">
-      <button class="btn btn-blue" onclick="exportCSV()">💾 CSV出力</button>
+      <label class="file-label" for="importFile">📂 Excel読込</label>
+      <input type="file" id="importFile" accept=".xlsx,.xls">
+      <button class="btn btn-blue" onclick="exportExcel()">💾 Excel出力</button>
       <button class="btn btn-outline btn-sm" onclick="clearData()">🗑 初期化</button>
       <div class="search-wrap">
         <input type="search" id="searchInput" class="search-input"
@@ -374,16 +392,25 @@ td{padding:9px 10px;vertical-align:middle}
 
 <!-- ② 参加者一覧 -->
 <div id="page-list" class="page">
-  <div class="filter-bar">
-    <select class="filter-select" id="listFilter" onchange="renderList()">
-      <option value="all">すべて</option>
-      <option value="unchecked">未受付のみ</option>
-      <option value="checked">受付済のみ</option>
-    </select>
-    <select class="filter-select" id="listGroup" onchange="renderList()">
-      <option value="">グループ全て</option>
-    </select>
-    <span class="list-count" id="list-count"></span>
+  <div class="sticky-filters">
+    <div class="kana-panel" style="margin-bottom:14px">
+      <div class="kana-panel-head">🔤 よみがなで絞り込む
+        <span style="font-weight:400;color:var(--ink-sub);font-size:.76rem">（本人のよみがなで絞り込みます／もう一度押すと解除）</span>
+      </div>
+      <div class="kana-grid" id="kana-grid-list"></div>
+    </div>
+    <div class="filter-bar">
+      <select class="filter-select" id="listFilter" onchange="renderList()">
+        <option value="all">すべて</option>
+        <option value="unchecked">未受付のみ</option>
+        <option value="checked">受付済のみ</option>
+        <option value="absent">欠席連絡ありのみ</option>
+      </select>
+      <select class="filter-select" id="listGroup" onchange="renderList()">
+        <option value="">グループ全て</option>
+      </select>
+      <span class="list-count" id="list-count"></span>
+    </div>
   </div>
   <div class="table-wrap">
     <table>
@@ -391,7 +418,7 @@ td{padding:9px 10px;vertical-align:middle}
         <th onclick="sortList('familyId')" style="cursor:pointer;user-select:none">家族ID <span id="sort-familyId">↕</span></th>
         <th onclick="sortList('yomi')" style="cursor:pointer;user-select:none">よみがな <span id="sort-yomi">↕</span></th>
         <th>氏名</th>
-        <th>シェア会G</th><th>参加費</th><th>受付</th><th>受付時刻</th>
+        <th>シェア会G</th><th>参加費</th><th>欠席連絡</th><th>受付</th><th>受付時刻</th>
       </tr></thead>
       <tbody id="list-tbody"></tbody>
     </table>
@@ -443,7 +470,7 @@ const GROUP_COLORS = {
 };
 function gColor(g){ return GROUP_COLORS[g] || '#888'; }
 
-let participants = []; // [{familyId, name, yomi, desc, group, checked, time}, ...]
+let participants = []; // [{familyId, name, yomi, desc, group, absent, checked, time}, ...]
 let activeKana = null;
 
 /* 五十音行定義 */
@@ -470,44 +497,66 @@ const KANA_ROWS = [
 function save(){ localStorage.setItem(STORE_KEY, JSON.stringify(participants)); }
 
 /* =====================================================================
-   CSV 読み込み
-   列: 家族ID, 氏名, よみがな, 区分, シェア会G
+   Excel（.xlsx / .xls）読み込み
+   列: 家族ID, 氏名, よみがな, 区分, シェア会G, 欠席（任意列）
    ─ 1行目（代表者）: 区分にテキスト説明、シェア会Gあり
    ─ 以降（同一家族ID）: 区分='-'、シェア会G=各自
+   ─ 欠席列: '○'などの記入があれば欠席連絡ありとして扱う（空欄/'-'は通常通り）
+             事前の欠席連絡はあくまで「連絡」であり、当日来場した場合は
+             通常どおり受付処理できる（受付を止めることはしない）
+   ─ iPad上で当日「欠席」ボタンを押した記録は、Excelを読み直しても
+     消えないように保持する（Excel側は上書きで消せない＝安全側）
    ===================================================================== */
-document.getElementById('csvFile').addEventListener('change', e => {
+function cellStr(v){ return (v===undefined||v===null) ? '' : String(v).trim(); }
+
+document.getElementById('importFile').addEventListener('change', e => {
   const file = e.target.files[0];
   if(!file) return;
   const reader = new FileReader();
   reader.onload = ev => {
-    const text = ev.target.result.replace(/^\uFEFF/,'').trim();
-    const lines = text.split(/\r?\n/).filter(l=>l.trim());
-    const hdrs = lines[0].split(',').map(h=>h.trim());
+    let rows;
+    try{
+      const data = new Uint8Array(ev.target.result);
+      const wb = XLSX.read(data, {type:'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+    }catch(err){
+      showToast('⚠ Excelファイルの読み込みに失敗しました', 'red');
+      e.target.value='';
+      return;
+    }
+    rows = rows.filter(r => r.some(c => cellStr(c)!==''));
+    if(!rows.length){ showToast('⚠ データが見つかりません','red'); e.target.value=''; return; }
 
-    const iId   = hdrs.indexOf('家族ID');
-    const iName = hdrs.indexOf('氏名');
-    const iYomi = hdrs.indexOf('よみがな');
-    const iDesc = hdrs.indexOf('区分');
-    const iGrp  = hdrs.indexOf('シェア会G');
+    const hdrs = rows[0].map(h=>cellStr(h));
+    const iId      = hdrs.indexOf('家族ID');
+    const iName    = hdrs.indexOf('氏名');
+    const iYomi    = hdrs.indexOf('よみがな');
+    const iDesc    = hdrs.indexOf('区分');
+    const iGrp     = hdrs.indexOf('シェア会G');
+    const iAbsent  = hdrs.indexOf('欠席');
 
     // グループ化して代表者のdescを記録
     const familyDesc = {}; // familyId → desc text
     const rawRows = [];
-    for(let i=1;i<lines.length;i++){
-      const c = lines[i].split(',');
-      const fid  = (c[iId]  ||'').trim();
-      const name = (c[iName]||'').trim();
-      const yomi = (c[iYomi]||'').trim();
-      const desc = (c[iDesc]||'').trim();
-      const grpRaw = iGrp>=0 ? (c[iGrp]||'').trim() : '';
+    for(let i=1;i<rows.length;i++){
+      const c = rows[i];
+      const fid  = cellStr(c[iId]);
+      const name = cellStr(c[iName]);
+      const yomi = cellStr(c[iYomi]);
+      const desc = cellStr(c[iDesc]);
+      const grpRaw = iGrp>=0 ? cellStr(c[iGrp]) : '';
       const grp  = (grpRaw==='-'||grpRaw==='') ? '' : grpRaw;
+      const absRaw = iAbsent>=0 ? cellStr(c[iAbsent]) : '';
+      const absent = !(absRaw===''||absRaw==='-'); // 何か記入があれば欠席連絡あり
       if(!fid || !name) continue;
       // 代表者行のdescを保存（'-'でない最初の行）
       if(desc && desc!=='-' && !familyDesc[fid]) familyDesc[fid]=desc;
-      rawRows.push({fid,name,yomi,desc,grp});
+      rawRows.push({fid,name,yomi,desc,grp,absent});
     }
 
-    // マージ（既存の受付状況を保持）
+    // マージ（既存の受付状況を保持。欠席は「Excelの記入」と「iPad上で当日押した記録」の
+    // どちらかがONならON＝上書きで消えないようにする）
     const map = {};
     participants.forEach(p=>{ map[p.familyId+'§'+p.name]=p; });
 
@@ -520,6 +569,7 @@ document.getElementById('csvFile').addEventListener('change', e => {
         yomi     : r.yomi,
         desc     : familyDesc[r.fid] || '',   // 代表者のdescを全員に付与
         group    : r.grp,
+        absent   : r.absent || (old ? !!old.absent : false),
         checked  : old ? old.checked : false,
         time     : old ? old.time    : '',
       };
@@ -531,7 +581,7 @@ document.getElementById('csvFile').addEventListener('change', e => {
     showToast(`✅ ${participants.length}名 読み込み完了`, 'green');
     e.target.value='';
   };
-  reader.readAsText(file, 'utf-8');
+  reader.readAsArrayBuffer(file);
 });
 
 /* =====================================================================
@@ -608,6 +658,16 @@ function doCheckinOne(familyId, name){
     save(); renderAll();
     showToast('↩ '+p.name+'の受付を取り消しました','red');
   }
+}
+
+/* 当日、欠席の連絡をもらった場合にiPad上で欠席扱いにする（再度押すと解除）。
+   受付自体は止めない＝来場すれば通常どおり受付ボタンが使える。 */
+function toggleAbsent(familyId, name){
+  const p = participants.find(p=>p.familyId===familyId&&p.name===name);
+  if(!p) return;
+  p.absent = !p.absent;
+  save(); renderAll();
+  showToast(p.absent ? '⚠ '+p.name+'さんを欠席扱いにしました' : p.name+'さんの欠席を解除しました', p.absent?'red':'green');
 }
 
 /* =====================================================================
@@ -700,6 +760,27 @@ function yomiMatchesRow(yomi,row){
   return r?r.chars.some(c=>yomi.startsWith(c)):false;
 }
 
+/* ===== ②参加者一覧タブ用：本人（代表者ではなく各個人）のよみがなで絞り込み ===== */
+let activeKanaList = null;
+function buildKanaGridList(){
+  const grid = document.getElementById('kana-grid-list');
+  if(!grid) return;
+  const yomis = new Set(participants.map(p=>p.yomi).filter(Boolean));
+  grid.innerHTML = KANA_ROWS.map(r=>{
+    const has = [...yomis].some(y=>r.chars.some(c=>y.startsWith(c)));
+    const cls = participants.length===0 ? 'kana-btn'
+              : has ? 'kana-btn has-member' : 'kana-btn no-member';
+    const isA = activeKanaList===r.row;
+    return `<button class="${cls}${isA?' active':''}" onclick="selectKanaList('${r.row}')">
+      <span class="kana-row-label">${r.label}</span>
+    </button>`;
+  }).join('');
+}
+function selectKanaList(row){
+  activeKanaList = (activeKanaList===row) ? null : row;
+  renderList();
+}
+
 /* =====================================================================
    検索
    ===================================================================== */
@@ -775,6 +856,7 @@ function buildFamilyCard(fid, members){
   const rep     = members[0];
   const paid    = paidAmount(members);
   const total   = totalAmount(members);
+  const absentCount = members.filter(p=>p.absent).length;
 
   const cardCls = status==='done'?'is-done':status==='partial'?'is-partial':'';
 
@@ -784,10 +866,13 @@ function buildFamilyCard(fid, members){
     const btnTxt   = m.checked ? '✓済' : '受付';
     const gBadge   = m.group
       ? `<span class="member-group-badge" style="background:${gColor(m.group)}" title="シェア会">${escHtml(m.group)}</span>` : '';
+    // 受付タブでは表示のみ（操作は②参加者一覧のタグで行う）。欠席連絡がない人には何も表示しない。
+    const absentTag = m.absent
+      ? `<span class="absent-tag" title="事前に欠席の連絡あり">⚠ 欠席連絡</span>` : '';
 
     const isRep = (m === members[0]); // 代表者フラグ
 
-    return `<div class="member-row">
+    return `<div class="member-row${m.absent?' is-absent-row':''}">
       <div class="member-left">
         <span class="role-dot"></span>
         <div>
@@ -796,6 +881,7 @@ function buildFamilyCard(fid, members){
         </div>
       </div>
       <div class="member-right">
+        ${absentTag}
         ${gBadge}
         <span class="member-fee-tag" style="font-size:.82rem;color:var(--ink-sub)">¥${FEE.toLocaleString()}</span>
         <button class="btn-member ${btnCls}"
@@ -819,11 +905,18 @@ function buildFamilyCard(fid, members){
       <span class="bca-amount">${bcaAmount}</span>
     </button>`;
 
+  // 欠席連絡（家族単位のまとめ表示）。当日来場すれば通常どおり受付できるため、
+  // あくまで「連絡あり」の注意喚起であり、受付自体は止めない。
+  const familyAbsentTag = absentCount>0
+    ? `<span class="fc-absent-tag">⚠ 欠席連絡 ${absentCount}名${absentCount===members.length?'（全員）':''}</span>`
+    : '';
+
   return `<div class="family-card ${cardCls}">
     <div class="fc-head">
       <div class="fc-head-left">
         <span class="fc-id">${escHtml(fid)}</span>
         <span class="fc-desc">${escHtml(rep.desc)||'個人'}</span>
+        ${familyAbsentTag}
       </div>
     </div>
     <div class="fc-body">
@@ -901,10 +994,14 @@ function renderList(){
     if(!familyFirstMap[p.familyId]) familyFirstMap[p.familyId]=p.name;
   });
 
+  buildKanaGridList();
+
   let data=[...participants];
   if(grpFilter) data=data.filter(p=>p.group===grpFilter);
   if(filter==='unchecked') data=data.filter(p=>!p.checked);
   if(filter==='checked')   data=data.filter(p=> p.checked);
+  if(filter==='absent')    data=data.filter(p=> p.absent);
+  if(activeKanaList)       data=data.filter(p=> yomiMatchesRow(p.yomi, activeKanaList));
 
   // ソート
   data.sort((a,b)=>{
@@ -927,6 +1024,10 @@ function renderList(){
         ${p.group?`<span style="background:${gColor(p.group)};color:#fff;padding:2px 9px;border-radius:9px;font-size:.8rem;font-weight:700">${escHtml(p.group)}</span>`:'<span style="color:#bbb">－</span>'}
       </td>
       <td>¥${FEE.toLocaleString()}</td>
+      <td style="text-align:center">
+        <button class="absent-toggle${p.absent?' active':''}"
+          onclick="toggleAbsent('${escHtml(p.familyId)}','${escHtml(p.name)}')">${p.absent?'⚠ 欠席':'欠席'}</button>
+      </td>
       <td style="text-align:center">
         ${p.checked?'<span class="tag tag-ok">済</span>':'<span class="tag tag-ng">－</span>'}
       </td>
@@ -958,7 +1059,7 @@ function renderGroup(){
     // このグループに属する個人ごとにチップを生成（代表者でなく本人の名前）
     const chips=members.map(p=>{
       const shortName=p.name.replace(/[　\s].*/,'');
-      return `<span class="family-chip ${p.checked?'done':''}">${escHtml(shortName)}${p.checked?' ✓':''}</span>`;
+      return `<span class="family-chip ${p.checked?'done':''}${p.absent?' is-absent-chip':''}" title="${p.absent?'事前に欠席の連絡あり':''}">${p.absent?'⚠ ':''}${escHtml(shortName)}${p.checked?' ✓':''}</span>`;
     }).join('');
     return `<div class="group-card">
       <div class="group-card-head" style="background:${color}">
@@ -977,7 +1078,7 @@ function renderGroup(){
     // 個人ごとにチップ生成・受付済で色変化
     const chips=noGrp.map(p=>{
       const shortName=p.name.replace(/[　\s].*/,'');
-      return `<span class="family-chip ${p.checked?'done':''}">${escHtml(shortName)}${p.checked?' ✓':''}</span>`;
+      return `<span class="family-chip ${p.checked?'done':''}${p.absent?' is-absent-chip':''}" title="${p.absent?'事前に欠席の連絡あり':''}">${p.absent?'⚠ ':''}${escHtml(shortName)}${p.checked?' ✓':''}</span>`;
     }).join('');
     ng.innerHTML=`<div class="no-group-card" style="margin-top:12px">
       <div class="no-group-head">📋 シェア会未参加（${noGrp.length}名　受付 ${checkedNg}/${noGrp.length}）</div>
@@ -988,26 +1089,26 @@ function renderGroup(){
 }
 
 /* =====================================================================
-   CSV 出力
+   Excel（.xlsx）出力
    ===================================================================== */
-function exportCSV(){
+function exportExcel(){
   if(!participants.length){showToast('データがありません');return;}
-  let txt='家族ID,氏名,よみがな,区分,シェア会G,参加費,受付,受付時刻\n';
+  const aoa=[['家族ID','氏名','よみがな','区分','シェア会G','欠席','参加費','受付','受付時刻']];
   const families=getFamilies();
   families.forEach((members,fid)=>{
     members.forEach(p=>{
       const isFirst = members[0]===p;
-      txt+=[p.familyId, p.name, p.yomi, isFirst?p.desc:'-',
-        p.group||'-', FEE,
-        p.checked?'済':'未', p.time].join(',')+'\n';
+      aoa.push([p.familyId, p.name, p.yomi, isFirst?p.desc:'-',
+        p.group||'-', p.absent?'○':'-', FEE,
+        p.checked?'済':'未', p.time]);
     });
   });
-  const blob=new Blob(['\uFEFF'+txt],{type:'text/csv;charset=utf-8'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  a.download='受付結果_'+fmtDate()+'.csv';
-  a.click();
-  showToast('💾 CSV出力しました','green');
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{wch:8},{wch:16},{wch:18},{wch:20},{wch:10},{wch:8},{wch:8},{wch:6},{wch:10}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '受付結果');
+  XLSX.writeFile(wb, '受付結果_'+fmtDate()+'.xlsx');
+  showToast('💾 Excel出力しました','green');
 }
 function fmtDate(){
   const d=new Date();
@@ -1022,7 +1123,7 @@ function fmtDate(){
 function clearData(){
   if(!confirm('全データを初期化します。よろしいですか？'))return;
   participants=[];localStorage.removeItem(STORE_KEY);
-  activeKana=null;buildKanaGrid();renderAll();showToast('🗑 初期化しました');
+  activeKana=null;activeKanaList=null;buildKanaGrid();renderAll();showToast('🗑 初期化しました');
 }
 function switchTab(name){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
