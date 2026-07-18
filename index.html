@@ -36,6 +36,7 @@ header{
 .hstat-num{font-size:1.05rem;font-weight:700}
 .hstat-green{background:rgba(30,138,80,.35)}
 .hstat-amber{background:rgba(217,119,6,.35)}
+.hstat-gray{background:rgba(255,255,255,.15);color:rgba(255,255,255,.85)}
 
 /* ===== タブ ===== */
 .tabs{display:flex;background:#fff;border-bottom:2px solid var(--border);position:sticky;
@@ -234,18 +235,14 @@ td{padding:9px 10px;vertical-align:middle}
 .group-card{background:#fff;border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);border:1px solid var(--border)}
 .group-card-head{padding:13px 15px;color:#fff;font-weight:700;display:flex;align-items:center;justify-content:space-between}
 .group-name-big{font-size:1.35rem}
-.group-counts{font-size:.82rem;text-align:right;line-height:1.6;opacity:.9}
-.group-families{padding:10px 13px;display:flex;flex-wrap:wrap;gap:6px}
+.group-families{padding:10px 13px 14px;display:flex;flex-wrap:wrap;gap:6px}
 .family-chip{display:inline-block;background:var(--bg);border:1px solid var(--border);border-radius:18px;padding:5px 11px;font-size:.84rem}
 .family-chip.done{background:#d4edda;border-color:var(--green);color:var(--green)}
 .family-chip.is-absent-chip{border-color:#f3b7ae;color:var(--red)}
 .family-chip.is-absent-chip.done{background:#d4edda;border-color:var(--green);color:var(--green)}
-.group-progress{padding:0 13px 11px}
-.progress-bar{height:6px;background:#eee;border-radius:3px;overflow:hidden}
-.progress-fill{height:100%;background:var(--green);border-radius:3px;transition:.5s}
 .no-group-card{background:#fff;border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);border:2px dashed var(--border);margin-top:8px}
 .no-group-head{padding:11px 15px;background:var(--bg);border-bottom:1px solid var(--border);font-weight:700;color:var(--ink-sub);font-size:.92rem}
-.no-group-families{padding:10px 13px;display:flex;flex-wrap:wrap;gap:6px}
+.no-group-families{padding:10px 13px 14px;display:flex;flex-wrap:wrap;gap:6px}
 
 @media(max-width:600px){
   .kana-grid{grid-template-columns:repeat(5,1fr);gap:5px}
@@ -326,7 +323,6 @@ td{padding:9px 10px;vertical-align:middle}
   .gsb-item{font-size:1.05rem}.gsb-item b{font-size:1.3rem}
   .group-card-head{padding:16px 18px}
   .group-name-big{font-size:1.5rem}
-  .group-counts{font-size:.92rem}
   .family-chip{font-size:.95rem;padding:6px 13px}
   .no-group-head{font-size:1.02rem;padding:14px 18px}
 
@@ -351,6 +347,7 @@ td{padding:9px 10px;vertical-align:middle}
   <div class="header-title">🎬 映画上映会 受付</div>
   <div class="header-stats">
     <div class="hstat hstat-green">受付 <span class="hstat-num" id="h-checked">0</span>/<span class="hstat-num" id="h-total">0</span></div>
+    <div class="hstat hstat-gray">欠席 <span class="hstat-num" id="h-absent">0</span></div>
     <div class="hstat hstat-amber">¥<span class="hstat-num" id="h-amount">0</span></div>
   </div>
 </header>
@@ -709,9 +706,12 @@ function closeModal(e){
    統計
    ===================================================================== */
 function calcStats(){
-  const total   = participants.length;
-  const checked = participants.filter(p=>p.checked).length;
-  return{ total, checked, amount:checked*FEE };
+  const total    = participants.length;
+  const checked  = participants.filter(p=>p.checked).length;
+  // 欠席連絡があり、かつまだ受付していない人＝別枠でカウント（「未受付」には含めない）
+  const absent   = participants.filter(p=>p.absent && !p.checked).length;
+  const unchecked = total - checked - absent;
+  return{ total, checked, absent, unchecked, amount:checked*FEE };
 }
 
 /* =====================================================================
@@ -812,8 +812,9 @@ function renderReception(){
   const res = document.getElementById('reception-results');
   const st  = calcStats();
 
-  document.getElementById('h-total').textContent   = st.total;
+  document.getElementById('h-total').textContent   = st.total - st.absent;
   document.getElementById('h-checked').textContent = st.checked;
+  document.getElementById('h-absent').textContent  = st.absent;
   document.getElementById('h-amount').textContent  = st.amount.toLocaleString();
 
   let hitFids;
@@ -998,7 +999,7 @@ function renderList(){
 
   let data=[...participants];
   if(grpFilter) data=data.filter(p=>p.group===grpFilter);
-  if(filter==='unchecked') data=data.filter(p=>!p.checked);
+  if(filter==='unchecked') data=data.filter(p=>!p.checked && !p.absent);
   if(filter==='checked')   data=data.filter(p=> p.checked);
   if(filter==='absent')    data=data.filter(p=> p.absent);
   if(activeKanaList)       data=data.filter(p=> yomiMatchesRow(p.yomi, activeKanaList));
@@ -1047,14 +1048,13 @@ function renderGroup(){
   document.getElementById('group-summary').innerHTML=`
     <div class="gsb-item">参加者 <b>${st.total}</b> 名</div>
     <div class="gsb-item" style="color:var(--green)">受付済 <b>${st.checked}</b> 名</div>
-    <div class="gsb-item" style="color:var(--red)">未受付 <b>${st.total-st.checked}</b> 名</div>
+    <div class="gsb-item" style="color:var(--red)">未受付 <b>${st.unchecked}</b> 名</div>
+    <div class="gsb-item" style="color:var(--ink-sub)">欠席連絡 <b>${st.absent}</b> 名</div>
     <div class="gsb-item" style="color:var(--amber)">集金額 <b>¥${st.amount.toLocaleString()}</b></div>`;
 
   document.getElementById('group-grid').innerHTML=groups.map(grp=>{
     const members=participants.filter(p=>p.group===grp);
     const familyIds=[...new Set(members.map(p=>p.familyId))];
-    const checkedCount=members.filter(p=>p.checked).length;
-    const pct=members.length?Math.round(checkedCount/members.length*100):0;
     const color=gColor(grp);
     // このグループに属する個人ごとにチップを生成（代表者でなく本人の名前）
     const chips=members.map(p=>{
@@ -1064,26 +1064,21 @@ function renderGroup(){
     return `<div class="group-card">
       <div class="group-card-head" style="background:${color}">
         <span class="group-name-big">${escHtml(grp)}グループ</span>
-        <span class="group-counts">${members.length}名<br>受付 ${checkedCount}/${members.length}（${pct}%）</span>
       </div>
       <div class="group-families">${chips}</div>
-      <div class="group-progress"><div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div></div>
     </div>`;
   }).join('');
 
   const ng=document.getElementById('no-group-section');
   if(noGrp.length){
-    const checkedNg=noGrp.filter(p=>p.checked).length;
-    const pctNg=Math.round(checkedNg/noGrp.length*100);
     // 個人ごとにチップ生成・受付済で色変化
     const chips=noGrp.map(p=>{
       const shortName=p.name.replace(/[　\s].*/,'');
       return `<span class="family-chip ${p.checked?'done':''}${p.absent?' is-absent-chip':''}" title="${p.absent?'事前に欠席の連絡あり':''}">${p.absent?'⚠ ':''}${escHtml(shortName)}${p.checked?' ✓':''}</span>`;
     }).join('');
     ng.innerHTML=`<div class="no-group-card" style="margin-top:12px">
-      <div class="no-group-head">📋 シェア会未参加（${noGrp.length}名　受付 ${checkedNg}/${noGrp.length}）</div>
+      <div class="no-group-head">📋 シェア会未参加</div>
       <div class="no-group-families">${chips}</div>
-      <div class="group-progress"><div class="progress-bar"><div class="progress-fill" style="width:${pctNg}%;background:#888"></div></div></div>
     </div>`;
   } else { ng.innerHTML=''; }
 }
