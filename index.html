@@ -745,6 +745,7 @@ function selectKana(row){
   document.getElementById('searchInput').classList.add('kana-mode');
   document.getElementById('searchInput').placeholder='（五十音で絞り込み中）';
   buildKanaGrid(); renderReception();
+  window.scrollTo(0,0);
 }
 function resetKana(){
   activeKana=null;
@@ -753,6 +754,7 @@ function resetKana(){
   si.placeholder='🔍 氏名・家族IDで検索（例：織田 ／ F01）';
   buildKanaGrid();
   renderReception();
+  window.scrollTo(0,0);
 }
 function yomiMatchesRow(yomi,row){
   if(!yomi)return false;
@@ -778,7 +780,16 @@ function buildKanaGridList(){
 }
 function selectKanaList(row){
   activeKanaList = (activeKanaList===row) ? null : row;
+  if(activeKanaList){
+    // 五十音で絞り込んだときは、個人のよみがな順（あいうえお順）で表示する
+    listSortKey='yomi'; listSortDir=1;
+    ['familyId','yomi'].forEach(k=>{
+      const el=document.getElementById('sort-'+k);
+      if(el) el.textContent = k===listSortKey ? '↑' : '↕';
+    });
+  }
   renderList();
+  window.scrollTo(0,0);
 }
 
 /* =====================================================================
@@ -818,10 +829,11 @@ function renderReception(){
   document.getElementById('h-amount').textContent  = st.amount.toLocaleString();
 
   let hitFids;
+  const families=getFamilies();
   if(activeKana){
     // 代表者（よみがな持ち最初の人）で絞り込み
     hitFids=[];
-    getFamilies().forEach((members,fid)=>{
+    families.forEach((members,fid)=>{
       const rep=members.find(p=>p.yomi)||members[0];
       if(yomiMatchesRow(rep.yomi,activeKana)) hitFids.push(fid);
     });
@@ -836,9 +848,16 @@ function renderReception(){
     hitFids=[...matched];
   } else {
     // 何も選択していない→全家族を表示
-    const families2=getFamilies();
-    hitFids=[...families2.keys()];
+    hitFids=[...families.keys()];
   }
+
+  // 代表者のよみがな（あいうえお順）で並べ替え
+  const repYomiOf=(fid)=>{
+    const members=families.get(fid)||[];
+    const rep=members.find(p=>p.yomi)||members[0]||{};
+    return rep.yomi||'';
+  };
+  hitFids.sort((a,b)=>repYomiOf(a).localeCompare(repYomiOf(b),'ja'));
 
   if(!hitFids.length){
     const label=activeKana?KANA_ROWS.find(x=>x.row===activeKana)?.label:'「'+escHtml(q)+'」';
@@ -846,7 +865,6 @@ function renderReception(){
     return;
   }
 
-  const families=getFamilies();
   res.innerHTML=hitFids.map(fid=>buildFamilyCard(fid,families.get(fid))).join('');
 }
 
